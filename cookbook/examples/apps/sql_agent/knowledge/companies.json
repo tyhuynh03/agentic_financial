@@ -1,0 +1,31 @@
+{
+    "description": "Information about companies in the Dow Jones Industrial Average (DJIA) index",
+    "tables": {
+        "companies": {
+            "description": "Table containing basic information about DJIA companies",
+            "columns": {
+                "symbol": "Company's stock symbol (primary key, relates to prices.Ticker)",
+                "name": "Full company name",
+                "sector": "Business sector",
+                "industry": "Specific industry",
+                "country": "Country of operation",
+                "website": "Official website",
+                "market_cap": "Market capitalization",
+                "pe_ratio": "Price to Earnings ratio",
+                "dividend_yield": "Dividend yield",
+                "52_week_high": "52-week high price",
+                "52_week_low": "52-week low price",
+                "description": "Company description"
+            },
+            "relationships": {
+                "prices": "One-to-many relationship with prices table through symbol = Ticker"
+            },
+            "example_queries": [
+                "SELECT symbol, name, sector FROM companies WHERE sector = 'Technology'",
+                "SELECT symbol, name, dividend_yield FROM companies ORDER BY dividend_yield DESC LIMIT 5",
+                "SELECT sector, COUNT(*) as company_count FROM companies GROUP BY sector ORDER BY company_count DESC",
+                "SELECT c.name, p.Date, p.Close FROM companies c JOIN prices p ON c.symbol = p.Ticker WHERE c.symbol = 'AAPL' ORDER BY p.Date DESC LIMIT 10"
+            ]
+        }
+    }
+}

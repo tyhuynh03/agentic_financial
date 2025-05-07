@@ -1,0 +1,30 @@
+{
+    "description": "Stock price data for companies in the Dow Jones Industrial Average (DJIA) index",
+    "tables": {
+        "prices": {
+            "description": "Table containing daily stock price data for DJIA companies",
+            "columns": {
+                "Date": "Trading date",
+                "Open": "Opening price",
+                "High": "Highest price of the day",
+                "Low": "Lowest price of the day",
+                "Close": "Closing price",
+                "Volume": "Trading volume",
+                "Dividends": "Dividend amount",
+                "Stock Splits": "Stock split ratio",
+                "Ticker": "Stock symbol (foreign key, relates to companies.symbol)"
+            },
+            "relationships": {
+                "companies": "Many-to-one relationship with companies table through Ticker = symbol"
+            },
+            "example_queries": [
+                "SELECT prices.Date, prices.Ticker, prices.Close FROM prices WHERE prices.Ticker = 'AAPL' ORDER BY prices.Date DESC LIMIT 10",
+                "SELECT prices.Ticker, AVG(prices.Close) as avg_price FROM prices GROUP BY prices.Ticker ORDER BY avg_price DESC LIMIT 5",
+                "SELECT prices.Date, prices.Ticker, (prices.High - prices.Low) as daily_range FROM prices ORDER BY daily_range DESC LIMIT 10",
+                "SELECT prices.Ticker, c.name, AVG(prices.Close) as avg_price FROM prices JOIN companies c ON prices.Ticker = c.symbol WHERE c.sector IN ('Technology', 'Healthcare') GROUP BY prices.Ticker, c.name ORDER BY avg_price DESC",
+                "SELECT c.sector, AVG(prices.Close) as avg_price, MAX(prices.Close) as max_price, MIN(prices.Close) as min_price FROM prices JOIN companies c ON prices.Ticker = c.symbol WHERE c.sector IN ('Technology', 'Healthcare') GROUP BY c.sector ORDER BY avg_price DESC",
+                "SELECT prices.Ticker, prices.Date, prices.Close FROM prices WHERE prices.Ticker IN ('AAPL', 'AMGN', 'CRM', 'CSCO', 'IBM', 'INTC', 'JNJ', 'MRK', 'MSFT', 'UNH', 'WBA') ORDER BY prices.Ticker, prices.Date"
+            ]
+        }
+    }
+}

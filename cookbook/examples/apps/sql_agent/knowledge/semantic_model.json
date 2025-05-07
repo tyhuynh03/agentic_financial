@@ -1,0 +1,14 @@
+{
+    "tables": [
+        {
+            "table_name": "companies",
+            "table_description": "Contains information about companies in the Dow Jones Industrial Average (DJIA) index, including company details, financial metrics, and market data.",
+            "Use Case": "Use this table to get company information, sector analysis, and financial metrics of DJIA companies."
+        },
+        {
+            "table_name": "prices",
+            "table_description": "Contains daily stock price data for DJIA companies, including opening, closing, high, low prices, volume, and other trading information.",
+            "Use Case": "Use this table for stock price analysis, trading volume analysis, and historical price trends of DJIA companies."
+        }
+    ]
+}
