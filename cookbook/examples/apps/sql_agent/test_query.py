@@ -1,34 +1,36 @@
-from agents import db_url
+import pandas as pd
 from sqlalchemy import create_engine, text
+from agents import db_url
 
-# Tạo kết nối đến database
-engine = create_engine(db_url)
+def test_timezone_query():
+    print("Kết nối database...")
+    engine = create_engine(db_url)
 
-# Câu truy vấn test
-query = """
-SELECT 
-    c.sector,
-    AVG(prices."Close") as avg_price,
-    MAX(prices."Close") as max_price,
-    MIN(prices."Close") as min_price,
-    COUNT(DISTINCT c.symbol) as num_companies
-FROM prices
-JOIN companies c ON prices."Ticker" = c.symbol
-WHERE c.sector IN ('Technology', 'Healthcare')
-GROUP BY c.sector
-ORDER BY avg_price DESC;
-"""
+    # Test: Lấy giá đóng cửa của Microsoft ngày 15/3/2024 với xử lý timezone
+    print("\nTest: Lấy giá đóng cửa của Microsoft (timezone aware)")
+    query = """
+    SELECT 
+        p."Date",
+        p."Close" as closing_price
+    FROM prices p
+    WHERE p."Ticker" = 'MSFT'
+    AND p."Date" AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York'::date = '2024-03-15'::date
+    LIMIT 1;
+    """
+    result = pd.read_sql(text(query), engine)
+    print("Kết quả:", result)
 
-# Thực thi câu truy vấn
-with engine.connect() as conn:
-    result = conn.execute(text(query))
-    rows = result.fetchall()
-    
-    # In kết quả
-    print("\nKết quả so sánh hiệu suất ngành:")
-    print("-" * 80)
-    print(f"{'Ngành':<15} {'Giá TB':<12} {'Giá Cao':<12} {'Giá Thấp':<12} {'Số CT':<8}")
-    print("-" * 80)
-    for row in rows:
-        print(f"{row[0]:<15} {row[1]:<12.2f} {row[2]:<12.2f} {row[3]:<12.2f} {row[4]:<8}")
-    print("-" * 80) 
+    # Kiểm tra thêm các giá trị ngày thực tế
+    print("\nKiểm tra các giá trị ngày thực tế của MSFT:")
+    check_query = """
+    SELECT "Date", "Close"
+    FROM prices
+    WHERE "Ticker" = 'MSFT'
+    ORDER BY "Date" DESC
+    LIMIT 5;
+    """
+    check_result = pd.read_sql(text(check_query), engine)
+    print(check_result)
+
+if __name__ == "__main__":
+    test_timezone_query() 

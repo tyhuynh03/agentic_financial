@@ -1,6 +1,6 @@
 import nest_asyncio
 import streamlit as st
-from agents import get_sql_agent
+from agents import get_sql_agent, agent_storage
 from agno.agent import Agent
 from agno.utils.log import logger
 from dotenv import load_dotenv
@@ -72,46 +72,58 @@ def main() -> None:
     ####################################################################
     # Initialize Agent
     ####################################################################
-    sql_agent: Agent
-    if (
-        "sql_agent" not in st.session_state
-        or st.session_state["sql_agent"] is None
-        or st.session_state.get("current_model") != model_id
-    ):
-        logger.info("---*--- Creating new SQL agent ---*---")
-        sql_agent = get_sql_agent(model_id=model_id)
-        st.session_state["sql_agent"] = sql_agent
-        st.session_state["current_model"] = model_id
-    else:
-        sql_agent = st.session_state["sql_agent"]
-
-    ####################################################################
-    # Load Agent Session from the database
-    ####################################################################
     try:
-        if "sql_agent_session_id" not in st.session_state or st.session_state["sql_agent_session_id"] is None:
-            st.session_state["sql_agent_session_id"] = sql_agent.load_session()
-    except Exception as e:
-        st.warning(f"Could not create Agent session: {str(e)}")
-        return
+        if (
+            "sql_agent" not in st.session_state
+            or st.session_state["sql_agent"] is None
+            or st.session_state.get("current_model") != model_id
+        ):
+            logger.info("---*--- Creating new SQL agent ---*---")
+            sql_agent = get_sql_agent(model_id=model_id)
+            if sql_agent is None:
+                st.error("Failed to initialize SQL agent")
+                return
+            st.session_state["sql_agent"] = sql_agent
+            st.session_state["current_model"] = model_id
+        else:
+            sql_agent = st.session_state["sql_agent"]
 
-    ####################################################################
-    # Load runs from memory
-    ####################################################################
-    agent_runs = sql_agent.memory.runs
-    if len(agent_runs) > 0:
-        logger.debug("Loading run history")
-        if "messages" not in st.session_state or not st.session_state["messages"]:
-            st.session_state["messages"] = []
-            for _run in agent_runs:
-                if _run.message is not None:
-                    add_message(_run.message.role, _run.message.content)
-                if _run.response is not None:
-                    add_message("assistant", _run.response.content, _run.response.tools)
-    else:
-        logger.debug("No run history found")
-        if "messages" not in st.session_state:
-            st.session_state["messages"] = []
+        ####################################################################
+        # Load Agent Session from the database
+        ####################################################################
+        if "sql_agent_session_id" not in st.session_state or st.session_state["sql_agent_session_id"] is None:
+            session_id = sql_agent.load_session()
+            if session_id is None:
+                st.warning("Could not create Agent session")
+                return
+            st.session_state["sql_agent_session_id"] = session_id
+
+        ####################################################################
+        # Load runs from memory
+        ####################################################################
+        if hasattr(sql_agent, 'memory') and sql_agent.memory is not None:
+            agent_runs = sql_agent.memory.runs
+            if agent_runs and len(agent_runs) > 0:
+                logger.debug("Loading run history")
+                if "messages" not in st.session_state or not st.session_state["messages"]:
+                    st.session_state["messages"] = []
+                    for _run in agent_runs:
+                        if _run.message is not None:
+                            add_message(_run.message.role, _run.message.content)
+                        if _run.response is not None:
+                            add_message("assistant", _run.response.content, _run.response.tools)
+            else:
+                logger.debug("No run history found")
+                if "messages" not in st.session_state:
+                    st.session_state["messages"] = []
+        else:
+            logger.warning("Agent memory not initialized")
+            if "messages" not in st.session_state:
+                st.session_state["messages"] = []
+
+    except Exception as e:
+        st.error(f"Error initializing agent: {str(e)}")
+        return
 
     ####################################################################
     # Sidebar
