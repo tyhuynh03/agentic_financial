@@ -115,4 +115,17 @@ JOIN companies c ON prices."Ticker" = c.symbol
 WHERE c.sector IN ('Technology', 'Healthcare')
 GROUP BY c.sector
 ORDER BY avg_price DESC;
+-- </query>
+
+-- <query description>
+-- Get the daily trading volume for Apple stock (AAPL)
+-- </query description>
+-- <query>
+SELECT 
+    "Date", 
+    "Volume" 
+FROM prices 
+WHERE "Ticker" = 'AAPL' 
+ORDER BY "Date" DESC 
+LIMIT 30;
 -- </query> 

@@ -5,6 +5,8 @@ from agno.agent import Agent
 from agno.utils.log import logger
 from dotenv import load_dotenv
 import os
+import json
+import pandas as pd
 
 from utils import (
     CUSTOM_CSS,
@@ -15,6 +17,7 @@ from utils import (
     session_selector_widget,
     sidebar_widget,
 )
+
 load_dotenv()
 
 nest_asyncio.apply()
@@ -28,6 +31,15 @@ st.set_page_config(
 # Load custom CSS with dark mode support
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
+# Khởi tạo session state nếu chưa có
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
+if "sql_agent" not in st.session_state:
+    st.session_state["sql_agent"] = None
+if "current_model" not in st.session_state:
+    st.session_state["current_model"] = None
+if "sql_agent_session_id" not in st.session_state:
+    st.session_state["sql_agent_session_id"] = None
 
 def main() -> None:
     ####################################################################
@@ -77,9 +89,10 @@ def main() -> None:
     # Load Agent Session from the database
     ####################################################################
     try:
-        st.session_state["sql_agent_session_id"] = sql_agent.load_session()
-    except Exception:
-        st.warning("Could not create Agent session, is the database running?")
+        if "sql_agent_session_id" not in st.session_state or st.session_state["sql_agent_session_id"] is None:
+            st.session_state["sql_agent_session_id"] = sql_agent.load_session()
+    except Exception as e:
+        st.warning(f"Could not create Agent session: {str(e)}")
         return
 
     ####################################################################
@@ -88,15 +101,17 @@ def main() -> None:
     agent_runs = sql_agent.memory.runs
     if len(agent_runs) > 0:
         logger.debug("Loading run history")
-        st.session_state["messages"] = []
-        for _run in agent_runs:
-            if _run.message is not None:
-                add_message(_run.message.role, _run.message.content)
-            if _run.response is not None:
-                add_message("assistant", _run.response.content, _run.response.tools)
+        if "messages" not in st.session_state or not st.session_state["messages"]:
+            st.session_state["messages"] = []
+            for _run in agent_runs:
+                if _run.message is not None:
+                    add_message(_run.message.role, _run.message.content)
+                if _run.response is not None:
+                    add_message("assistant", _run.response.content, _run.response.tools)
     else:
         logger.debug("No run history found")
-        st.session_state["messages"] = []
+        if "messages" not in st.session_state:
+            st.session_state["messages"] = []
 
     ####################################################################
     # Sidebar
@@ -152,7 +167,6 @@ def main() -> None:
                             and _resp_chunk.content is not None
                         ):
                             response += _resp_chunk.content
-                            # Thêm kết quả mới vào cuối thay vì ghi đè
                             resp_container.markdown(response + "\n\n" + "---")
 
                     add_message("assistant", response, sql_agent.run_response.tools)
