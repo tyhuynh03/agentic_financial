@@ -187,7 +187,11 @@ def get_sql_agent(
            - Use search_knowledge_base to find company information
            - Find corresponding stock symbol (e.g., JPM for JPMorgan Chase)
            - Verify symbol exists in database
-           - ALWAYS use the `search_knowledge_base(table_name)` tool to get table metadata
+           - ALWAYS use the `search_knowledge_base` tool with these steps:
+             + First search for "Get stock symbol from company name (exact match)"
+             + Use the query template to find the symbol
+             + If not found, try alternative company names
+             + If still not found, ask user for clarification
            - If symbol is found:
              + Proceed immediately to CREATE QUERY step
              + Don't wait for additional confirmation
@@ -212,12 +216,12 @@ def get_sql_agent(
              + Verify LIMIT clause format
              + Ensure correct quote usage
              + Test query before execution
-           - DOUBLE CHECK these common syntax errors:
-             + LIMIT1 -> LIMIT 1 (MUST have space)
-             + LIMIT1; -> LIMIT 1 (no semicolon)
-             + "Close" -> "Close" (double quotes)
-             + 'JPM' -> 'JPM' (single quotes)
-             + 2025-04-18 -> '2025-04-18' (date in quotes)
+           - DOUBLE CHECK these common errors:
+             + "Symbol" -> "Ticker" (correct column name)
+             + LIMIT1 -> LIMIT 1 (must have space)
+             + March5,2025 -> '2025-03-05' (proper date format)
+             + Missing LIMIT clause
+             + Wrong column names
            - If sample queries are available, use them as a reference
            - If you need more information about the table, use the `describe_table` tool
 
@@ -254,23 +258,26 @@ def get_sql_agent(
            - Brief explanation if needed
            - Format response EXACTLY as follows:
              ```
-             The closing price of [Company] on [Date] was $[Price]
+             On [Date], [Company] had a trading volume of [Volume] shares.
 
              SQL query used:
              ```sql
              [SQL QUERY]
              ```
              ```
+           - Format numbers appropriately:
+             + Trading volume: Show exact number without any formatting
+             + Price: Show exact price with $ symbol
+             + Percentages: Show exact percentage with % symbol
            - Show results as a table or chart if possible
            - Return answer in markdown format
            - ALWAYS use the exact format above for consistency
            - ALWAYS put SQL query in a ```sql code block
-           - ALWAYS format numbers with proper spacing and currency symbol
            - ALWAYS format dates in YYYY-MM-DD format
            - ALWAYS add proper spacing between words
            - NEVER add semicolon at the end of SQL query
            - NEVER add extra spaces at the end of lines
-           - NEVER add extra punctuation at the end of price
+           - NEVER add extra punctuation at the end of numbers
            - NEVER use final_answer function
            - ALWAYS return response directly in the specified format
            - ALWAYS handle the response formatting in the main response flow

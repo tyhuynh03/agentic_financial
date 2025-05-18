@@ -20,6 +20,18 @@ LIMIT 1;
 -- </query>
 
 -- <query description>
+-- Get stock symbol from company name (exact match)
+-- </query description>
+-- <query>
+SELECT symbol, name 
+FROM companies 
+WHERE LOWER(name) = LOWER(:company_name) 
+OR LOWER(name) LIKE LOWER(:company_name) || '%'
+OR LOWER(name) LIKE '%' || LOWER(:company_name) || '%'
+LIMIT 1;
+-- </query>
+
+-- <query description>
 -- Get stock symbol from company name
 -- </query description>
 -- <query>
@@ -163,4 +175,11 @@ JOIN companies c ON p."Ticker" = c.symbol
 WHERE c.name LIKE :company_name 
 AND p."Date" = :date 
 LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get trading volume for a specific stock on a specific date
+-- </query description>
+-- <query>
+SELECT "Volume" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
 -- </query>
