@@ -1,6 +1,6 @@
 import nest_asyncio
 import streamlit as st
-from agents import get_sql_agent, agent_storage
+from agents import get_sql_agent, agent_storage, agent_knowledge
 from agno.agent import Agent
 from agno.utils.log import logger
 from dotenv import load_dotenv
@@ -70,6 +70,18 @@ def main() -> None:
     model_id = model_options[selected_model]
 
     ####################################################################
+    # Reload Knowledge Button
+    ####################################################################
+    if st.sidebar.button("🔄 Reload Knowledge"):
+        try:
+            with st.spinner("Đang tải lại knowledge base..."):
+                agent_knowledge.load(recreate=True)
+                st.sidebar.success("Knowledge base đã được tải lại thành công!")
+        except Exception as e:
+            st.sidebar.error(f"Lỗi: {str(e)}")
+            logger.exception("Error reloading knowledge base")
+
+    ####################################################################
     # Initialize Agent
     ####################################################################
     try:
@@ -79,12 +91,18 @@ def main() -> None:
             or st.session_state.get("current_model") != model_id
         ):
             logger.info("---*--- Creating new SQL agent ---*---")
-            sql_agent = get_sql_agent(model_id=model_id)
+            sql_agent = get_sql_agent(
+                name="SQrL",
+                model_id=model_id,
+                debug_mode=True,
+                session_id=None  # Để agent tự tạo session mới
+            )
             if sql_agent is None:
                 st.error("Failed to initialize SQL agent")
                 return
             st.session_state["sql_agent"] = sql_agent
             st.session_state["current_model"] = model_id
+            st.session_state["sql_agent_session_id"] = sql_agent.session_id
         else:
             sql_agent = st.session_state["sql_agent"]
 
@@ -120,6 +138,12 @@ def main() -> None:
             logger.warning("Agent memory not initialized")
             if "messages" not in st.session_state:
                 st.session_state["messages"] = []
+            # Khởi tạo lại memory nếu chưa có
+            try:
+                sql_agent.memory = agent_storage.create_memory(sql_agent.session_id)
+            except Exception as e:
+                logger.error(f"Error creating memory: {str(e)}")
+                st.error("Could not initialize agent memory")
 
     except Exception as e:
         st.error(f"Error initializing agent: {str(e)}")
@@ -198,7 +222,6 @@ def main() -> None:
     # About section
     ####################################################################
     about_widget()
-
 
 if __name__ == "__main__":
     main()

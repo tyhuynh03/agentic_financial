@@ -8,10 +8,22 @@ SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
 -- </query>
 
 -- <query description>
+-- Get closing price directly from company name and date
+-- </query description>
+-- <query>
+SELECT p."Close" 
+FROM prices p 
+JOIN companies c ON p."Ticker" = c.symbol 
+WHERE c.name LIKE '%' || :company_name || '%' 
+AND p."Date" = :date 
+LIMIT 1;
+-- </query>
+
+-- <query description>
 -- Get stock symbol from company name
 -- </query description>
 -- <query>
-SELECT symbol FROM companies WHERE name LIKE :company_name;
+SELECT symbol FROM companies WHERE name LIKE '%' || :company_name || '%';
 -- </query>
 
 -- <query description>
@@ -102,4 +114,53 @@ FROM prices
 WHERE "Ticker" = :ticker 
 AND "Date" BETWEEN :start_date AND :end_date 
 ORDER BY "Date";
--- </query> 
+-- </query>
+
+-- <query description>
+-- Get highest price for a specific stock on a specific date
+-- </query description>
+-- <query>
+SELECT "High" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get lowest price for a specific stock on a specific date
+-- </query description>
+-- <query>
+SELECT "Low" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get daily price range (high and low) for a specific stock
+-- </query description>
+-- <query>
+SELECT "Date", "High", "Low", ("High" - "Low") as daily_range 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND "Date" BETWEEN :start_date AND :end_date 
+ORDER BY "Date";
+-- </query>
+
+-- <query description>
+-- Get lowest price for a company by name on a specific date
+-- </query description>
+-- <query>
+SELECT p."Low" 
+FROM prices p 
+JOIN companies c ON p."Ticker" = c.symbol 
+WHERE c.name LIKE :company_name 
+AND p."Date" = :date 
+LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get trading volume for a company by name on a specific date
+-- </query description>
+-- <query>
+SELECT p."Volume" 
+FROM prices p 
+JOIN companies c ON p."Ticker" = c.symbol 
+WHERE c.name LIKE :company_name 
+AND p."Date" = :date 
+LIMIT 1;
+-- </query>
