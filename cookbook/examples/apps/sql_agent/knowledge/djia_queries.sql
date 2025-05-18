@@ -217,3 +217,61 @@ AND "Close" = (
 )
 LIMIT 1;
 -- </query>
+
+-- <query description>
+-- Count number of dividends paid by a company in a specific year
+-- </query description>
+-- <query>
+SELECT COUNT(*) AS dividend_count 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND EXTRACT(YEAR FROM "Date") = :year 
+AND "Dividends" > 0;
+-- </query>
+
+-- <query description>
+-- Get dividend payment dates and amounts for a company in a specific year
+-- </query description>
+-- <query>
+SELECT "Date", "Dividends" 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND EXTRACT(YEAR FROM "Date") = :year 
+AND "Dividends" > 0 
+ORDER BY "Date";
+-- </query>
+
+-- <query description>
+-- Get total dividend amount paid by a company in a specific year
+-- </query description>
+-- <query>
+SELECT SUM("Dividends") AS total_dividends 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND EXTRACT(YEAR FROM "Date") = :year 
+AND "Dividends" > 0;
+-- </query>
+
+-- <query description>
+-- Get dividend amount for a specific stock on a specific date
+-- </query description>
+-- <query>
+SELECT "Date", "Dividends" 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND "Date" = :date 
+AND "Dividends" > 0 
+LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get dividend amount for a specific stock in a date range
+-- </query description>
+-- <query>
+SELECT "Date", "Dividends" 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND "Date" BETWEEN :start_date AND :end_date 
+AND "Dividends" > 0 
+ORDER BY "Date";
+-- </query>

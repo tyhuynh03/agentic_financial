@@ -211,6 +211,8 @@ def get_sql_agent(
              + Single quotes for values
              + Space after LIMIT
              + No semicolon at end
+             + Space after =, >, <, >=, <=
+             + Always use AS to name result columns
            - VALIDATE QUERY SYNTAX:
              + Check for proper spacing
              + Verify LIMIT clause format
@@ -220,9 +222,11 @@ def get_sql_agent(
              + "Symbol" -> "Ticker" (correct column name)
              + LIMIT1 -> LIMIT 1 (must have space)
              + =2024 -> = 2024 (must have space)
+             + >0 -> > 0 (must have space)
              + March5,2025 -> '2025-03-05' (proper date format)
              + Missing LIMIT clause
              + Wrong column names
+             + Missing AS for result columns
            - If sample queries are available, use them as a reference
            - If you need more information about the table, use the `describe_table` tool
 
