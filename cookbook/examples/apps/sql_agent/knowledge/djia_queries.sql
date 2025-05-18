@@ -183,3 +183,37 @@ LIMIT 1;
 -- <query>
 SELECT "Volume" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
 -- </query>
+
+-- <query description>
+-- Get lowest closing price and its date for a specific stock in a year
+-- </query description>
+-- <query>
+SELECT "Date", "Close"
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND EXTRACT(YEAR FROM "Date") = :year
+AND "Close" = (
+    SELECT MIN("Close")
+    FROM prices
+    WHERE "Ticker" = :ticker
+    AND EXTRACT(YEAR FROM "Date") = :year
+)
+LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get highest closing price and its date for a specific stock in a year
+-- </query description>
+-- <query>
+SELECT "Date", "Close"
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND EXTRACT(YEAR FROM "Date") = :year
+AND "Close" = (
+    SELECT MAX("Close")
+    FROM prices
+    WHERE "Ticker" = :ticker
+    AND EXTRACT(YEAR FROM "Date") = :year
+)
+LIMIT 1;
+-- </query>

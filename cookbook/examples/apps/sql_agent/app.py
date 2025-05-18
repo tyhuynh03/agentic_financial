@@ -202,10 +202,20 @@ def main() -> None:
                             _resp_chunk.event == "RunResponse"
                             and _resp_chunk.content is not None
                         ):
-                            response += _resp_chunk.content
+                            # Format SQL query display
+                            content = _resp_chunk.content
+                            if "SQL query used:" in content:
+                                parts = content.split("SQL query used:")
+                                text_part = parts[0]
+                                sql_part = parts[1]
+                                # Format SQL query with proper indentation
+                                sql_lines = sql_part.strip().split("\n")
+                                formatted_sql = "\n".join(line.strip() for line in sql_lines)
+                                content = f"{text_part}SQL query used:\n```sql\n{formatted_sql}\n```"
+                            response += content
                             resp_container.markdown(response + "\n\n" + "---")
 
-                    add_message("assistant", response, sql_agent.run_response.tools)
+                        add_message("assistant", response, sql_agent.run_response.tools)
                 except Exception as e:
                     logger.exception(e)
                     error_message = f"Sorry, I encountered an error: {str(e)}"

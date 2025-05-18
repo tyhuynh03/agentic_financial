@@ -219,6 +219,7 @@ def get_sql_agent(
            - DOUBLE CHECK these common errors:
              + "Symbol" -> "Ticker" (correct column name)
              + LIMIT1 -> LIMIT 1 (must have space)
+             + =2024 -> = 2024 (must have space)
              + March5,2025 -> '2025-03-05' (proper date format)
              + Missing LIMIT clause
              + Wrong column names
@@ -239,6 +240,10 @@ def get_sql_agent(
              + Always put column names in double quotes
              + Always add space between LIMIT and number
              + Always use single quotes for string values
+           - ALWAYS show the actual executed query in the response
+           - NEVER show the template query
+           - Format the executed query nicely with proper indentation
+           - Make sure the query shown matches exactly what was run
 
         5. ANALYZE RESULTS:
            - Check price reasonability
@@ -258,16 +263,35 @@ def get_sql_agent(
            - Brief explanation if needed
            - Format response EXACTLY as follows:
              ```
-             On [Date], [Company] had a trading volume of [Volume] shares.
+             [Company]'s highest closing price in [Year] was $[Price] on [Date].
 
              SQL query used:
              ```sql
-             [SQL QUERY]
+             [ACTUAL_EXECUTED_QUERY]
+             ```
+             ```
+           - For price queries, use these formats:
+             - For highest price:
+             ```
+             [Company]'s highest closing price in [Year] was $[Price] on [Date].
+
+             SQL query used:
+             ```sql
+             [ACTUAL_EXECUTED_QUERY]
+             ```
+             ```
+             - For lowest price:
+             ```
+             [Company]'s lowest closing price in [Year] was $[Price] on [Date].
+
+             SQL query used:
+             ```sql
+             [ACTUAL_EXECUTED_QUERY]
              ```
              ```
            - Format numbers appropriately:
              + Trading volume: Show exact number without any formatting
-             + Price: Show exact price with $ symbol
+             + Price: Round to 2 decimal places with $ symbol
              + Percentages: Show exact percentage with % symbol
            - Show results as a table or chart if possible
            - Return answer in markdown format
@@ -281,6 +305,11 @@ def get_sql_agent(
            - NEVER use final_answer function
            - ALWAYS return response directly in the specified format
            - ALWAYS handle the response formatting in the main response flow
+           - ALWAYS use the actual executed query, not the template
+           - NEVER show the SQL query twice
+           - ALWAYS add space after "in" and "on"
+           - ALWAYS add space after "=" in SQL queries
+           - ALWAYS add space after "LIMIT" in SQL queries
 
         7. VERIFY:
            - Ask user if result is satisfactory
