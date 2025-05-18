@@ -25,6 +25,15 @@ def load_sql_queries(file_path: str) -> list:
         logger.error(f"Error loading SQL file {file_path}: {str(e)}")
         return []
 
+def load_markdown(file_path: str) -> str:
+    """Load markdown file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception as e:
+        logger.error(f"Error loading markdown file {file_path}: {str(e)}")
+        return ""
+
 def load_knowledge(recreate: bool = True):
     """Load all knowledge files for SQL agent."""
     logger.info("Loading SQL agent knowledge.")
@@ -48,6 +57,14 @@ def load_knowledge(recreate: bool = True):
     if os.path.exists(sql_file):
         queries = load_sql_queries(sql_file)
         logger.info(f"Loaded {len(queries)} SQL queries from djia_queries.sql")
+    
+    # Load markdown files
+    md_files = ['stock_symbols.md']
+    for md_file in md_files:
+        file_path = os.path.join(knowledge_dir, md_file)
+        if os.path.exists(file_path):
+            content = load_markdown(file_path)
+            logger.info(f"Loaded knowledge from {md_file}")
     
     logger.info("SQL agent knowledge loaded successfully.")
 
