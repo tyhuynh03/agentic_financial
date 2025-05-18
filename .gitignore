@@ -1,6 +1,6 @@
 # Environment variables
 .env
-.env.*
+cookbook/examples/apps/sql_agent/.env
 
 # Python
 __pycache__/
@@ -8,9 +8,26 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 venv/
 ENV/
+.venv/
 
 # IDE
 .idea/
