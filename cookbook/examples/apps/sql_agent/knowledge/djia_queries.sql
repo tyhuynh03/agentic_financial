@@ -84,4 +84,22 @@ FROM prices p
 JOIN companies c ON p."Ticker" = c.symbol 
 WHERE c.sector IN (:sector1, :sector2) 
 GROUP BY c.sector;
+-- </query>
+
+-- <query description>
+-- Get opening price for a specific stock on a specific date
+-- </query description>
+-- <query>
+SELECT "Open" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Get opening and closing prices for a specific stock in a date range
+-- </query description>
+-- <query>
+SELECT "Date", "Open", "Close" 
+FROM prices 
+WHERE "Ticker" = :ticker 
+AND "Date" BETWEEN :start_date AND :end_date 
+ORDER BY "Date";
 -- </query> 

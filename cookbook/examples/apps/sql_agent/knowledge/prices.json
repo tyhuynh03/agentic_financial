@@ -23,7 +23,10 @@
                 "SELECT prices.Date, prices.Ticker, (prices.High - prices.Low) as daily_range FROM prices ORDER BY daily_range DESC LIMIT 10",
                 "SELECT prices.Ticker, c.name, AVG(prices.Close) as avg_price FROM prices JOIN companies c ON prices.Ticker = c.symbol WHERE c.sector IN ('Technology', 'Healthcare') GROUP BY prices.Ticker, c.name ORDER BY avg_price DESC",
                 "SELECT c.sector, AVG(prices.Close) as avg_price, MAX(prices.Close) as max_price, MIN(prices.Close) as min_price FROM prices JOIN companies c ON prices.Ticker = c.symbol WHERE c.sector IN ('Technology', 'Healthcare') GROUP BY c.sector ORDER BY avg_price DESC",
-                "SELECT prices.Ticker, prices.Date, prices.Close FROM prices WHERE prices.Ticker IN ('AAPL', 'AMGN', 'CRM', 'CSCO', 'IBM', 'INTC', 'JNJ', 'MRK', 'MSFT', 'UNH', 'WBA') ORDER BY prices.Ticker, prices.Date"
+                "SELECT prices.Ticker, prices.Date, prices.Close FROM prices WHERE prices.Ticker IN ('AAPL', 'AMGN', 'CRM', 'CSCO', 'IBM', 'INTC', 'JNJ', 'MRK', 'MSFT', 'UNH', 'WBA') ORDER BY prices.Ticker, prices.Date",
+                "SELECT prices.Date, prices.Ticker, prices.Open FROM prices WHERE prices.Ticker = 'BA' AND prices.Date = '2023-08-01'",
+                "SELECT prices.Date, prices.Ticker, prices.Open FROM prices WHERE prices.Ticker = 'BA' ORDER BY prices.Date DESC LIMIT 10",
+                "SELECT prices.Ticker, prices.Date, prices.Open, prices.Close FROM prices WHERE prices.Ticker = 'BA' AND prices.Date BETWEEN '2023-08-01' AND '2023-08-31' ORDER BY prices.Date"
             ]
         }
     }
