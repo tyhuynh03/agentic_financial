@@ -186,18 +186,12 @@ def get_sql_agent(
              * Replace parameters:
                - :ticker -> stock symbol (e.g. 'MSFT')
                - :date -> date in YYYY-MM-DD format
-           - For volume queries:
-             * Use template from djia_queries.sql
-             * Replace parameters same as price queries
-           - For comparison queries:
-             * Use JOIN to compare multiple companies
-             * Format: SELECT a."Close" as price1, b."Close" as price2 
-                      FROM prices a JOIN prices b 
-                      ON a."Date" = b."Date" 
-                      WHERE a."Ticker" = 'MSFT' AND b."Ticker" = 'AAPL'
-           - For analysis queries:
-             * Use appropriate aggregate functions (AVG, MAX, MIN, etc.)
-             * Format: SELECT AVG("Close") FROM prices WHERE "Ticker" = :ticker AND "Date" BETWEEN :start_date AND :end_date
+           - For comparative queries:
+             * Use the query with description "Compare closing prices of two companies by name on a specific date" from djia_queries.sql
+             * Replace parameters:
+               - :company1 -> first company name
+               - :company2 -> second company name
+               - :date -> date in YYYY-MM-DD format
 
         4. EXECUTE QUERY:
            - Use run_sql_query to execute
@@ -209,10 +203,6 @@ def get_sql_agent(
              * First try to find nearest past date
              * If still no data, try future dates
              * Store both the price and nearest date
-           - If error occurs:
-             * Analyze error message
-             * Fix syntax issues
-             * Retry with corrected query
 
         5. FORMAT RESPONSE:
            - For simple price queries:
@@ -220,16 +210,21 @@ def get_sql_agent(
                "The [price_type] price of [company] on [date] was $[price]"
              * If using nearest date:
                "The [price_type] price of [company] on [date] was $[price] (nearest available date: [nearest_date])"
-           - For analysis queries:
-             * Format: "The [metric] for [company] during [period] was [value] on [date]"
-             * Example: "The lowest closing price of Verizon in 2023 was $27.81 on October 13, 2023"
+           - For comparative queries:
+             * Format: "[company1] had a higher [price_type] of $[price1] compared to [company2]'s $[price2] on [date]"
+             * Example: "Microsoft had a higher closing price of $412.00 compared to Apple's $237.61 on January 15, 2025"
+             * Always show both prices in the response
+             * Format prices with 2 decimal places
+             * Use standard ASCII characters only
+             * Avoid special characters or Unicode
            - Always:
              * Add proper spacing between words
              * Format numbers with 2 decimal places
              * Format dates as "Month DD, YYYY"
-             * Show the EXACT SQL query that was executed in a separate code block
-             * Never modify or create a new SQL query for display
+             * Show the EXACT SQL query that was executed
              * Double check all numbers and dates
+             * Use standard ASCII characters
+             * Avoid line breaks in the middle of words
 
         6. VERIFY:
            - Check if answer matches expected format
