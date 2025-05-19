@@ -192,6 +192,10 @@ def get_sql_agent(
                - :company1 -> first company name
                - :company2 -> second company name
                - :date -> date in YYYY-MM-DD format
+           - For highest/lowest price questions:
+             * Use the query with description "Find company with highest/lowest closing price on a specific date" from djia_queries.sql
+             * Replace parameters:
+               - :date -> date in YYYY-MM-DD format
 
         4. EXECUTE QUERY:
            - Use run_sql_query to execute
@@ -211,15 +215,20 @@ def get_sql_agent(
              * Display all necessary information
              * Format numbers and dates for readability
              * Show SQL query in code block:
-                            
                ```sql
                SELECT ... FROM ... WHERE ...
                ```
-           - Adapt response based on question type:
-             * Simple question -> concise answer
-             * Complex question -> detailed explanation
-             * Comparison question -> highlight differences
-             * Analysis question -> add insights
+           - For comparative questions:
+             * Get both prices in a single query if possible
+             * Compare prices immediately after getting results
+             * Format: "[Company1] had a higher closing price of $[price1] vs [Company2]'s $[price2]"
+             * Use standard ASCII only, avoid special characters
+             * Format prices with 2 decimal places
+           - For highest/lowest price questions:
+             * Use MIN/MAX with GROUP BY to find extreme values
+             * Format: "[Company] had the [highest/lowest] closing price of $[price]"
+             * Include company name and exact price
+             * Use "roughly", "about", or "around" for price approximation
 
         6. VERIFY:
            - Check if answer matches expected format

@@ -311,3 +311,44 @@ WHERE c1.name LIKE :company1
 AND c2.name LIKE :company2
 AND p1."Date" = :date;
 -- </query>
+
+-- <query description>
+-- Find company with highest closing price on a specific date
+-- </query description>
+-- <query>
+SELECT 
+    c.name,
+    p."Close"
+FROM prices p
+JOIN companies c ON p."Ticker" = c.symbol
+WHERE p."Date" = :date
+ORDER BY p."Close" DESC
+LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Find company with lowest closing price on a specific date
+-- </query description>
+-- <query>
+SELECT 
+    c.name,
+    p."Close"
+FROM prices p
+JOIN companies c ON p."Ticker" = c.symbol
+WHERE p."Date" = :date
+ORDER BY p."Close" ASC
+LIMIT 1;
+-- </query>
+
+-- <query description>
+-- Find company with highest/lowest closing price on a specific date (simplified version)
+-- </query description>
+-- <query>
+SELECT 
+    "Ticker",
+    "Close"
+FROM prices 
+WHERE "Date" = :date
+ORDER BY "Close" DESC
+LIMIT 1;
+-- </query>
