@@ -352,3 +352,40 @@ WHERE "Date" = :date
 ORDER BY "Close" DESC
 LIMIT 1;
 -- </query>
+
+-- <query description>
+-- Compare total dividends between two companies in a specific year
+-- </query description>
+-- <query>
+SELECT 
+    c.name,
+    SUM(p."Dividends") as total_dividends
+FROM companies c
+JOIN prices p ON c.symbol = p."Ticker"
+WHERE c.symbol IN (:ticker1, :ticker2)
+    AND EXTRACT(YEAR FROM p."Date") = :year
+GROUP BY c.name
+ORDER BY total_dividends DESC;
+-- </query>
+
+-- <query description>
+-- Calculate average daily trading volume for a specific stock in a year
+-- </query description>
+-- <query>
+SELECT 
+    AVG("Volume") as avg_daily_volume
+FROM prices 
+WHERE "Ticker" = :ticker 
+    AND EXTRACT(YEAR FROM "Date") = :year;
+-- </query>
+
+-- <query description>
+-- Calculate percentage price change for a specific stock in a year (comparing first and last price)
+-- </query description>
+-- <query>
+SELECT 
+    ROUND((((l."Close" - f."Close") / f."Close") * 100)::numeric, 2) AS price_change_percentage
+FROM 
+    (SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND DATE_PART('year', "Date") = :year ORDER BY "Date" ASC LIMIT 1) f,
+    (SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND DATE_PART('year', "Date") = :year ORDER BY "Date" DESC LIMIT 1) l;
+-- </query>
