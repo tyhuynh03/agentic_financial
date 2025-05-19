@@ -24,7 +24,8 @@ def load_new_queries():
     
     # Load new SQL queries
     knowledge_dir = os.path.join(os.path.dirname(__file__), 'knowledge')
-    sql_file = os.path.join(knowledge_dir, 'djia_queries_new.sql')
+    new_queries_dir = os.path.join(knowledge_dir, 'new_queries')
+    sql_file = os.path.join(new_queries_dir, 'djia_queries_new.sql')
     
     if os.path.exists(sql_file):
         queries = load_sql_queries(sql_file)

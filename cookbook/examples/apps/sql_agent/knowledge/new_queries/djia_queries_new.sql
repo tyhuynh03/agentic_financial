@@ -1,17 +1,6 @@
 -- </query>
 
 -- <query description>
--- Calculate average closing price for a specific stock in a date range
--- </query description>
--- <query>
-SELECT 
-    AVG("Close") as avg_closing_price
-FROM prices 
-WHERE "Ticker" = :ticker 
-    AND "Date" BETWEEN :start_date AND :end_date;
--- </query>
-
--- <query description>
 -- Calculate average daily trading volume for a specific stock in a year
 -- </query description>
 -- <query>
