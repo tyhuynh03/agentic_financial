@@ -4,31 +4,31 @@
 -- Get closing price for a specific stock on a specific date
 -- </query description>
 -- <query>
-SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+SELECT DISTINCT ON ("Date") "Close" 
+FROM prices 
+WHERE "Ticker" = :ticker AND "Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get closing price directly from company name and date
 -- </query description>
 -- <query>
-SELECT p."Close" 
+SELECT DISTINCT ON (p."Date") p."Close" 
 FROM prices p 
 JOIN companies c ON p."Ticker" = c.symbol 
 WHERE c.name LIKE '%' || :company_name || '%' 
-AND p."Date" = :date 
-LIMIT 1;
+AND p."Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get stock symbol from company name (exact match)
 -- </query description>
 -- <query>
-SELECT symbol, name 
+SELECT DISTINCT ON (name) symbol, name 
 FROM companies 
 WHERE LOWER(name) = LOWER(:company_name) 
 OR LOWER(name) LIKE LOWER(:company_name) || '%'
-OR LOWER(name) LIKE '%' || LOWER(:company_name) || '%'
-LIMIT 1;
+OR LOWER(name) LIKE '%' || LOWER(:company_name) || '%';
 -- </query>
 
 -- <query description>
@@ -114,7 +114,9 @@ GROUP BY c.sector;
 -- Get opening price for a specific stock on a specific date
 -- </query description>
 -- <query>
-SELECT "Open" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+SELECT DISTINCT ON ("Date") "Open" 
+FROM prices 
+WHERE "Ticker" = :ticker AND "Date" = :date;
 -- </query>
 
 -- <query description>
@@ -132,14 +134,18 @@ ORDER BY "Date";
 -- Get highest price for a specific stock on a specific date
 -- </query description>
 -- <query>
-SELECT "High" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+SELECT DISTINCT ON ("Date") "High" 
+FROM prices 
+WHERE "Ticker" = :ticker AND "Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get lowest price for a specific stock on a specific date
 -- </query description>
 -- <query>
-SELECT "Low" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+SELECT DISTINCT ON ("Date") "Low" 
+FROM prices 
+WHERE "Ticker" = :ticker AND "Date" = :date;
 -- </query>
 
 -- <query description>
@@ -157,65 +163,53 @@ ORDER BY "Date";
 -- Get lowest price for a company by name on a specific date
 -- </query description>
 -- <query>
-SELECT p."Low" 
+SELECT DISTINCT ON (p."Date") p."Low" 
 FROM prices p 
 JOIN companies c ON p."Ticker" = c.symbol 
 WHERE c.name LIKE :company_name 
-AND p."Date" = :date 
-LIMIT 1;
+AND p."Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get trading volume for a company by name on a specific date
 -- </query description>
 -- <query>
-SELECT p."Volume" 
+SELECT DISTINCT ON (p."Date") p."Volume" 
 FROM prices p 
 JOIN companies c ON p."Ticker" = c.symbol 
 WHERE c.name LIKE :company_name 
-AND p."Date" = :date 
-LIMIT 1;
+AND p."Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get trading volume for a specific stock on a specific date
 -- </query description>
 -- <query>
-SELECT "Volume" FROM prices WHERE "Ticker" = :ticker AND "Date" = :date LIMIT 1;
+SELECT DISTINCT ON ("Date") "Volume" 
+FROM prices 
+WHERE "Ticker" = :ticker AND "Date" = :date;
 -- </query>
 
 -- <query description>
 -- Get lowest closing price and its date for a specific stock in a year
 -- </query description>
 -- <query>
-SELECT "Date", "Close"
+SELECT DISTINCT ON ("Close") "Date", "Close"
 FROM prices 
 WHERE "Ticker" = :ticker 
 AND EXTRACT(YEAR FROM "Date") = :year
-AND "Close" = (
-    SELECT MIN("Close")
-    FROM prices
-    WHERE "Ticker" = :ticker
-    AND EXTRACT(YEAR FROM "Date") = :year
-)
-LIMIT 1;
+ORDER BY "Close" ASC;
 -- </query>
 
 -- <query description>
 -- Get highest closing price and its date for a specific stock in a year
 -- </query description>
 -- <query>
-SELECT "Date", "Close"
+SELECT DISTINCT ON ("Close") "Date", "Close"
 FROM prices 
 WHERE "Ticker" = :ticker 
 AND EXTRACT(YEAR FROM "Date") = :year
-AND "Close" = (
-    SELECT MAX("Close")
-    FROM prices
-    WHERE "Ticker" = :ticker
-    AND EXTRACT(YEAR FROM "Date") = :year
-)
-LIMIT 1;
+ORDER BY "Close" DESC;
 -- </query>
 
 -- <query description>
@@ -280,7 +274,7 @@ ORDER BY "Date";
 -- Compare closing prices of two companies on a specific date
 -- </query description>
 -- <query>
-SELECT 
+SELECT DISTINCT ON (a."Date")
     a."Ticker" as ticker1,
     b."Ticker" as ticker2,
     a."Close" as price1,
@@ -293,15 +287,14 @@ FROM prices a
 JOIN prices b ON a."Date" = b."Date"
 WHERE a."Ticker" = :ticker1 
 AND b."Ticker" = :ticker2
-AND a."Date" = :date
-LIMIT 1;
+AND a."Date" = :date;
 -- </query>
 
 -- <query description>
 -- Compare closing prices of two companies by name on a specific date
 -- </query description>
 -- <query>
-SELECT 
+SELECT DISTINCT ON (p1."Date")
     c1.name as company1,
     c2.name as company2,
     p1."Close" as price1,
@@ -316,6 +309,5 @@ JOIN companies c1 ON p1."Ticker" = c1.symbol
 JOIN companies c2 ON p2."Ticker" = c2.symbol
 WHERE c1.name LIKE :company1
 AND c2.name LIKE :company2
-AND p1."Date" = :date
-LIMIT 1;
+AND p1."Date" = :date;
 -- </query>

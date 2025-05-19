@@ -205,26 +205,21 @@ def get_sql_agent(
              * Store both the price and nearest date
 
         5. FORMAT RESPONSE:
-           - For simple price queries:
-             * If exact date found:
-               "The [price_type] price of [company] on [date] was $[price]"
-             * If using nearest date:
-               "The [price_type] price of [company] on [date] was $[price] (nearest available date: [nearest_date])"
-           - For comparative queries:
-             * Format: "[company1] had a higher [price_type] of $[price1] compared to [company2]'s $[price2] on [date]"
-             * Example: "Microsoft had a higher closing price of $412.00 compared to Apple's $237.61 on January 15, 2025"
-             * Always show both prices in the response
-             * Format prices with 2 decimal places
-             * Use standard ASCII characters only
-             * Avoid special characters or Unicode
-           - Always:
-             * Add proper spacing between words
-             * Format numbers with 2 decimal places
-             * Format dates as "Month DD, YYYY"
-             * Show the EXACT SQL query that was executed
-             * Double check all numbers and dates
-             * Use standard ASCII characters
-             * Avoid line breaks in the middle of words
+           - Respond naturally based on the user's question
+           - No need to follow rigid templates
+           - Still ensure:
+             * Display all necessary information
+             * Format numbers and dates for readability
+             * Show SQL query in code block:
+                            
+               ```sql
+               SELECT ... FROM ... WHERE ...
+               ```
+           - Adapt response based on question type:
+             * Simple question -> concise answer
+             * Complex question -> detailed explanation
+             * Comparison question -> highlight differences
+             * Analysis question -> add insights
 
         6. VERIFY:
            - Check if answer matches expected format
