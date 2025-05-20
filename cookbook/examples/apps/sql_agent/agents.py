@@ -40,6 +40,7 @@ from agno.embedder.google import GeminiEmbedder
 from agno.models.groq import Groq
 from agno.document.chunking.fixed import FixedSizeChunking
 from agno.tools.knowledge import KnowledgeTools
+from plot_tool import PlotTool
 # ************* Database Connection *************
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 # *******************************
@@ -92,6 +93,10 @@ with open(semantic_model_path, 'r') as f:
 semantic_model_str = json.dumps(semantic_model, indent=2)
 # *******************************
 
+class UnlimitedSQLTools(SQLTools):
+    def run_sql_query(self, query: str) -> str:
+        """Override run_sql_query to return all results"""
+        return super().run_sql_query(query, limit=None)
 
 def get_sql_agent(
     name: str = "SQL Agent",
@@ -135,9 +140,10 @@ def get_sql_agent(
         add_references=True,
         # Add tools to the agent
         tools=[
-            SQLTools(db_url=db_url, list_tables=False),
+            UnlimitedSQLTools(db_url=db_url, list_tables=False),
             FileTools(base_dir=output_dir),
             ReasoningTools(add_instructions=True, add_few_shot=True, think=True),
+            PlotTool(),
         ],
         debug_mode=debug_mode,
         description=dedent("""\
@@ -230,7 +236,7 @@ def get_sql_agent(
              * Format: "[Company] had the [highest/lowest] closing price of $[price]"
              * Include company name and exact price
              * Use "roughly", "about", or "around" for price approximation
-
+            - For plotting, return image path
         7. VERIFY:
            - Check if answer matches expected format
            - Verify numbers are properly formatted

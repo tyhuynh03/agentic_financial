@@ -6,6 +6,7 @@ import streamlit as st
 from agents import get_sql_agent
 from agno.agent.agent import Agent
 from agno.utils.log import logger
+import pandas as pd
 
 
 def is_json(myjson):
@@ -107,7 +108,14 @@ def display_tool_calls(tool_calls_container, tools):
                         try:
                             if is_json(content):
                                 st.markdown("**Results:**")
-                                st.json(content)
+                                # Chuyển đổi JSON thành DataFrame để hiển thị
+                                if isinstance(content, str):
+                                    content = json.loads(content)
+                                df = pd.DataFrame.from_records(content)
+                                # Hiển thị DataFrame với đầy đủ dữ liệu
+                                st.dataframe(df, use_container_width=True, height=400)
+                                # Hiển thị thông tin về số lượng dòng
+                                st.write(f"Tổng số dòng: {len(df)}")
                         except Exception as e:
                             logger.debug(f"Skipped tool call content: {e}")
     except Exception as e:
