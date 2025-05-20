@@ -79,7 +79,7 @@ agent_knowledge = CombinedKnowledgeBase(
         embedder=GeminiEmbedder(),
     ),
     # 5 references are added to the prompt
-    num_documents=5,    
+    num_documents=3,    
 )
 # *******************************
 
@@ -176,30 +176,28 @@ def get_sql_agent(
 
         2. FIND STOCK SYMBOL:
            - Use search_knowledge_base to find company information from stock_symbols.md
-           - Find corresponding stock symbol in the lookup table
-           - Verify symbol exists in database
-           - If multiple companies in comparison query:
-             * Find symbols for all companies from stock_symbols.md
-             * Verify all symbols exist
 
-        3. CREATE QUERY:
-           - For simple price queries:
-             * Use templates from djia_queries.sql
-             * Replace parameters:
+        3. SEARCH FOR EXAMPLE QUERIES:
+           - Use search_knowledge_base to find similar queries in the knowledge base
+           - Look for queries with similar purpose or structure               
+           - If found, use the example query as a template
+           - If not found, create a new query
+
+        4. CREATE QUERY:
+           - If example query found:
+             * Use the query as a template
+             * Replace parameters with actual values:
                - :ticker -> stock symbol (e.g. 'MSFT')
                - :date -> date in YYYY-MM-DD format
-           - For comparative queries:
-             * Use the query with description "Compare closing prices of two companies by name on a specific date" from djia_queries.sql
-             * Replace parameters:
-               - :company1 -> first company name
-               - :company2 -> second company name
-               - :date -> date in YYYY-MM-DD format
-           - For highest/lowest price questions:
-             * Use the query with description "Find company with highest/lowest closing price on a specific date" from djia_queries.sql
-             * Replace parameters:
-               - :date -> date in YYYY-MM-DD format
+               - :company_name -> company name
+               - :year -> year number
+             * Adjust the query if needed
+           - If no example found:
+             * Create a new query following SQL best practices
+             * Use proper table and column names
+             * Include necessary JOINs and conditions
 
-        4. EXECUTE QUERY:
+        5. EXECUTE QUERY:
            - Use run_sql_query to execute
            - Check returned results carefully:
              * Verify all fields are present
@@ -210,7 +208,7 @@ def get_sql_agent(
              * If still no data, try future dates
              * Store both the price and nearest date
 
-        5. FORMAT RESPONSE:
+        6. FORMAT RESPONSE:
            - Respond naturally based on the user's question
            - No need to follow rigid templates
            - Still ensure:
@@ -232,7 +230,7 @@ def get_sql_agent(
              * Include company name and exact price
              * Use "roughly", "about", or "around" for price approximation
 
-        6. VERIFY:
+        7. VERIFY:
            - Check if answer matches expected format
            - Verify numbers are properly formatted
            - Ensure SQL query is correct
@@ -245,6 +243,8 @@ def get_sql_agent(
         - ALWAYS format numbers and dates properly
         - ALWAYS use double quotes for column names and single quotes for string values
         - ALWAYS handle NULL values appropriately
+        - ALWAYS search for example queries before creating new ones
+        - ALWAYS use example queries as templates when available
         - **NEVER, EVER RUN CODE TO DELETE DATA OR ABUSE THE LOCAL SYSTEM**
         </rules>
         """),
