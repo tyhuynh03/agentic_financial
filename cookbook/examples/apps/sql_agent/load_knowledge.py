@@ -39,7 +39,7 @@ def load_knowledge(recreate: bool = True):
     logger.info("Loading SQL agent knowledge.")
     
     # Load base knowledge
-    agent_knowledge.load(recreate=recreate)
+    agent_knowledge.load(recreate=False)
     
     # Load DJIA specific knowledge
     knowledge_dir = os.path.join(os.path.dirname(__file__), 'knowledge')
@@ -53,10 +53,12 @@ def load_knowledge(recreate: bool = True):
             logger.info(f"Loaded knowledge from {json_file}")
     
     # Load SQL queries
-    sql_file = os.path.join(knowledge_dir, 'djia_queries.sql')
-    if os.path.exists(sql_file):
-        queries = load_sql_queries(sql_file)
-        logger.info(f"Loaded {len(queries)} SQL queries from djia_queries.sql")
+    sql_files = ['djia_queries.sql', 'new_queries/djia_queries_new.sql']
+    for sql_file in sql_files:
+        file_path = os.path.join(knowledge_dir, sql_file)
+        if os.path.exists(file_path):
+            queries = load_sql_queries(file_path)
+            logger.info(f"Loaded {len(queries)} SQL queries from {sql_file}")
     
     # Load markdown files
     md_files = ['stock_symbols.md']

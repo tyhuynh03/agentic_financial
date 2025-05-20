@@ -38,6 +38,7 @@ from agno.tools.sql import SQLTools
 from agno.vectordb.pgvector import PgVector
 from agno.embedder.google import GeminiEmbedder
 from agno.models.groq import Groq
+from agno.document.chunking.fixed import FixedSizeChunking
 # ************* Database Connection *************
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 # *******************************
@@ -64,6 +65,7 @@ agent_knowledge = CombinedKnowledgeBase(
         TextKnowledgeBase(
             path=knowledge_dir,
             formats=[".txt", ".sql", ".md"],
+            chunking_strategy=FixedSizeChunking(chunk_size=2000, overlap=100),
         ),
         # Reads JSON files
         JSONKnowledgeBase(path=knowledge_dir),
