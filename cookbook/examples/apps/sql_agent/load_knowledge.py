@@ -53,7 +53,7 @@ def load_knowledge(recreate: bool = True):
             logger.info(f"Loaded knowledge from {json_file}")
     
     # Load SQL queries
-    sql_files = ['djia_queries.sql', 'new_queries/djia_queries_new.sql']
+    sql_files = ['new_queries/djia_queries_new.sql']
     for sql_file in sql_files:
         file_path = os.path.join(knowledge_dir, sql_file)
         if os.path.exists(file_path):

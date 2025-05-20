@@ -39,6 +39,7 @@ from agno.vectordb.pgvector import PgVector
 from agno.embedder.google import GeminiEmbedder
 from agno.models.groq import Groq
 from agno.document.chunking.fixed import FixedSizeChunking
+from agno.tools.knowledge import KnowledgeTools
 # ************* Database Connection *************
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 # *******************************
@@ -130,12 +131,13 @@ def get_sql_agent(
         read_chat_history=True,
         # Enable the ability to read the tool call history
         read_tool_call_history=True,
+        # Add references from knowledge base to user prompt
+        add_references=True,
         # Add tools to the agent
         tools=[
             SQLTools(db_url=db_url, list_tables=False),
             FileTools(base_dir=output_dir),
-            ReasoningTools(add_instructions=True, add_few_shot=True),
-            
+            ReasoningTools(add_instructions=True, add_few_shot=True, think=True),
         ],
         debug_mode=debug_mode,
         description=dedent("""\
