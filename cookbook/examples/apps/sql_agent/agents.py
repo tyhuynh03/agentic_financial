@@ -79,7 +79,7 @@ agent_knowledge = CombinedKnowledgeBase(
         embedder=GeminiEmbedder(),
     ),
     # 5 references are added to the prompt
-    num_documents=3,    
+    num_documents=5,    
 )
 # *******************************
 
@@ -174,14 +174,16 @@ def get_sql_agent(
              * For comparisons: Use JOIN or subqueries
              * For analysis: Use aggregate functions
 
-        2. FIND STOCK SYMBOL:
-           - Use search_knowledge_base to find company information from stock_symbols.md
-
-        3. SEARCH FOR EXAMPLE QUERIES:
+        2. SEARCH FOR EXAMPLE QUERIES:
            - Use search_knowledge_base to find similar queries in the knowledge base
            - Look for queries with similar purpose or structure               
            - If found, use the example query as a template
            - If not found, create a new query
+
+        3. FIND STOCK SYMBOL (if needed):
+           - Only when the query requires company information
+           - Use search_knowledge_base to find company information from stock_symbols.md
+           - Replace company names with their symbols in the query
 
         4. CREATE QUERY:
            - If example query found:
@@ -209,15 +211,12 @@ def get_sql_agent(
              * Store both the price and nearest date
 
         6. FORMAT RESPONSE:
-           - Respond naturally based on the user's question
-           - No need to follow rigid templates
-           - Still ensure:
-             * Display all necessary information
-             * Format numbers and dates for readability
-             * Show SQL query in code block:
-               ```sql
-               SELECT ... FROM ... WHERE ...
-               ```
+           - ALWAYS show the SQL query that was executed in a code block:
+             ```sql
+             SELECT ... FROM ... WHERE ...
+             ```
+           - Then provide the answer in a natural way
+           - Format numbers and dates for readability
            - For comparative questions:
              * Get both prices in a single query if possible
              * Compare prices immediately after getting results
@@ -233,13 +232,13 @@ def get_sql_agent(
         7. VERIFY:
            - Check if answer matches expected format
            - Verify numbers are properly formatted
-           - Ensure SQL query is correct
+           - Ensure SQL query is correct and displayed
            - Ask user if result is satisfactory
 
         <rules>
         - ALWAYS follow the processing sequence
         - ALWAYS verify data before responding
-        - ALWAYS show the EXACT SQL query that was executed
+        - ALWAYS show the EXACT SQL query that was executed in a code block
         - ALWAYS format numbers and dates properly
         - ALWAYS use double quotes for column names and single quotes for string values
         - ALWAYS handle NULL values appropriately

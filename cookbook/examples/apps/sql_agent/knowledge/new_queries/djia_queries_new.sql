@@ -21,3 +21,30 @@ FROM
     (SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND DATE_PART('year', "Date") = :year ORDER BY "Date" ASC LIMIT 1) f,
     (SELECT "Close" FROM prices WHERE "Ticker" = :ticker AND DATE_PART('year', "Date") = :year ORDER BY "Date" DESC LIMIT 1) l;
 -- </query>
+
+-- <query description>
+-- Compare total dividends between two companies in a specific year
+-- </query description>
+-- <query>
+SELECT "Ticker", SUM("Dividends") as total_dividends 
+FROM prices 
+WHERE "Ticker" IN (:ticker1, :ticker2) 
+AND EXTRACT(YEAR FROM "Date") = :year 
+GROUP BY "Ticker";
+-- </query>
+
+-- <query description>
+-- Calculate average dividend yield for all DJIA companies in a specific year
+-- </query description>
+-- <query>
+WITH per_ticker_yield AS (
+    SELECT 
+        "Ticker", 
+        SUM("Dividends") / NULLIF(AVG("Close"), 0) AS yield
+    FROM prices
+    WHERE "Date" BETWEEN :start_date AND :end_date
+    GROUP BY "Ticker"
+)
+SELECT ROUND(AVG(yield)::numeric * 100, 2) AS avg_dividend_yield_percent
+FROM per_ticker_yield;
+-- </query>
