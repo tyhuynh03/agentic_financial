@@ -50,6 +50,7 @@ def main() -> None:
     model_options = {
         "llama-4-scout": "groq:meta-llama/llama-4-scout-17b-16e-instruct",
         "gemini-2.5-pro-exp-03-25": "google:gemini-2.5-pro-exp-03-25",
+        
     }
     selected_model = st.sidebar.selectbox(
         "Select a model",

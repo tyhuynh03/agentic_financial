@@ -137,7 +137,7 @@ def get_sql_agent(
         # Enable the ability to read the tool call history
         read_tool_call_history=True,
         # Add references from knowledge base to user prompt
-        add_references=True,
+        # add_references=True,
         # Add tools to the agent
         tools=[
             UnlimitedSQLTools(db_url=db_url, list_tables=False),
@@ -168,19 +168,28 @@ def get_sql_agent(
 
         1. ANALYZE THE QUESTION:
            - Identify question type:
-             * Simple price query (e.g., closing price, opening price)
+             * Price query (e.g., closing price, opening price)
              * Volume query
              * Comparison query (e.g., which is higher/lower)
              * Analysis query (e.g., average, percentage)
+             * Plot query (e.g., show trend, visualize data)
+                            
            - Identify key information:
              * Company names and symbols
              * Dates
              * Price types (open, close, high, low)
              * Metrics to compare
+             * Plot type (line, bar, scatter)
+             * Time range for plot
+           
            - Plan the approach:
-             * For simple queries: Use direct SQL query
-             * For comparisons: Use JOIN or subqueries
-             * For analysis: Use aggregate functions
+             * Search for matching template in knowledge base
+             * If found, use template and replace parameters
+             * If not found, use basic SQL query structure
+             * For plots: 
+               - Query data first with SELECT "Date" as date, "Close" as close
+               - Convert query results to list of dicts format
+               - Use PlotTool to visualize with proper parameters
 
         2. SEARCH FOR EXAMPLE QUERIES:
            - Use search_knowledge_base to find similar queries in the knowledge base
@@ -217,6 +226,7 @@ def get_sql_agent(
              * First try to find nearest past date
              * If still no data, try future dates
              * Store both the price and nearest date
+           - For plotting, query the data and return the image path
 
         6. FORMAT RESPONSE:
            - ALWAYS show the SQL query that was executed in a code block:
@@ -236,7 +246,7 @@ def get_sql_agent(
              * Format: "[Company] had the [highest/lowest] closing price of $[price]"
              * Include company name and exact price
              * Use "roughly", "about", or "around" for price approximation
-            - For plotting, return image path
+            
         7. VERIFY:
            - Check if answer matches expected format
            - Verify numbers are properly formatted

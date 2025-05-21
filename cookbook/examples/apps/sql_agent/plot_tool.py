@@ -3,7 +3,7 @@ import pandas as pd
 from typing import List, Dict
 from agno.tools import Toolkit
 from agno.utils.log import log_info, logger
-
+import time
 class PlotTools:
     def plot_time_series(
         self,
@@ -13,7 +13,7 @@ class PlotTools:
         title: str = "Time Series Plot",
         xlabel: str = "Date",
         ylabel: str = "Close ($)",
-        output_path: str = "output/plot.png"
+        output_path: str = f"plot_{int(time.time())}.png"
     ) -> str:
         """
         Vẽ biểu đồ time series từ dữ liệu.
