@@ -40,7 +40,8 @@ from agno.embedder.google import GeminiEmbedder
 from agno.models.groq import Groq
 from agno.document.chunking.fixed import FixedSizeChunking
 from agno.tools.knowledge import KnowledgeTools
-from plot_tool import PlotTool
+from plot_tool import PlotTools
+from tools.format_sql_result import FormatSQLTool
 # ************* Database Connection *************
 db_url = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 # *******************************
@@ -81,7 +82,7 @@ agent_knowledge = CombinedKnowledgeBase(
         embedder=GeminiEmbedder(),
     ),
     # 5 references are added to the prompt
-    num_documents=5,    
+    num_documents=4,    
 )
 # *******************************
 
@@ -143,7 +144,8 @@ def get_sql_agent(
             UnlimitedSQLTools(db_url=db_url, list_tables=False),
             FileTools(base_dir=output_dir),
             ReasoningTools(add_instructions=True, add_few_shot=True, think=True),
-            PlotTool(),
+            PlotTools(),
+            # FormatSQLTool(),
         ],
         debug_mode=debug_mode,
         description=dedent("""\
@@ -183,24 +185,30 @@ def get_sql_agent(
              * Time range for plot
            
            - Plan the approach:
-             * Search for matching template in knowledge base
+             * Search keywords for matching template in knowledge base
              * If found, use template and replace parameters
              * If not found, use basic SQL query structure
              * For plots: 
-               - Query data first with SELECT "Date" as date, "Close" as close
+               - query data first
                - Convert query results to list of dicts format
                - Use PlotTool to visualize with proper parameters
 
         2. SEARCH FOR EXAMPLE QUERIES:
-           - Use search_knowledge_base to find similar queries in the knowledge base
+           - Use search_knowledge_base to find similar queries in the knowledge base 
+             # example:Plot the histogram of daily returns of Boeing (BA) during 2024
+               search_knowledge_base("Get daily returns data")
+             # example:How many dividends did Apple pay in 2024?  
+               search_knowledge_base("Count number of dividends paid by a company in a specific year")
+             # example:What dividend per share did Microsoft pay on May 17, 2023?
+               search_knowledge_base("Get dividend amount for a specific stock on a specific date")
+             # example:By what percentage did Apple’s stock price increase in 2024?
+               search_knowledge_base("percentage price change ")
+             # example:What was Boeing’s beta (relative to the DJIA index) for 2024?
+               search_knowledge_base("Calculate stock's beta relative")
            - Look for queries with similar purpose or structure               
            - If found, use the example query as a template
            - If not found, create a new query
 
-        3. FIND STOCK SYMBOL (if needed):
-           - Only when the query requires company information
-           - Use search_knowledge_base to find company information from stock_symbols.md
-           - Replace company names with their symbols in the query
 
         4. CREATE QUERY:
            - If example query found:
@@ -226,26 +234,14 @@ def get_sql_agent(
              * First try to find nearest past date
              * If still no data, try future dates
              * Store both the price and nearest date
-           - For plotting, query the data and return the image path
+           - For plotting, query the data and use PlotTools to visualize
 
         6. FORMAT RESPONSE:
+           - Provide the answer in a natural way
            - ALWAYS show the SQL query that was executed in a code block:
              ```sql
              SELECT ... FROM ... WHERE ...
-             ```
-           - Then provide the answer in a natural way
-           - Format numbers and dates for readability
-           - For comparative questions:
-             * Get both prices in a single query if possible
-             * Compare prices immediately after getting results
-             * Format: "[Company1] had a higher closing price of $[price1] vs [Company2]'s $[price2]"
-             * Use standard ASCII only, avoid special characters
-             * Format prices with 2 decimal places
-           - For highest/lowest price questions:
-             * Use MIN/MAX with GROUP BY to find extreme values
-             * Format: "[Company] had the [highest/lowest] closing price of $[price]"
-             * Include company name and exact price
-             * Use "roughly", "about", or "around" for price approximation
+             ```  
             
         7. VERIFY:
            - Check if answer matches expected format

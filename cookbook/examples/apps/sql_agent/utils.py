@@ -132,21 +132,6 @@ def sidebar_widget() -> None:
         
     if st.sidebar.button("💰 Top Market Cap"):
         add_message("user", "Show me the top 5 companies by market cap")
-        
-    if st.sidebar.button("📊 Sector Performance"):
-        add_message("user", "Compare stock performance between technology and healthcare sectors")
-        
-    if st.sidebar.button("📈 Trading Volume"):
-        add_message("user", "Show me the daily trading volume for Apple stock")
-        
-    if st.sidebar.button("💵 Dividend Yield"):
-        add_message("user", "Which companies have the highest dividend yield?")
-        
-    if st.sidebar.button("📉 Price Range"):
-        add_message("user", "Show me the 52-week high/low price range for each stock")
-        
-    if st.sidebar.button("📈 Moving Average"):
-        add_message("user", "Calculate the 30-day moving average for Microsoft stock")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("#### 🛠️ Utilities")
