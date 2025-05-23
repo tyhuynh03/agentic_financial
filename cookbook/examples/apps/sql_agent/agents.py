@@ -144,7 +144,6 @@ def get_sql_agent(
             UnlimitedSQLTools(db_url=db_url, list_tables=False),
             FileTools(base_dir=output_dir),
             ReasoningTools(add_instructions=True, add_few_shot=True, think=True),
-            PlotTools(),
             # FormatSQLTool(),
         ],
         debug_mode=debug_mode,
@@ -205,6 +204,8 @@ def get_sql_agent(
                search_knowledge_base("percentage price change ")
              # example:What was Boeing’s beta (relative to the DJIA index) for 2024?
                search_knowledge_base("Calculate stock's beta relative")
+             # example:Which company had a higher closing price 
+               search_knowledge_base("Compare closing prices of two companies")
            - Look for queries with similar purpose or structure               
            - If found, use the example query as a template
            - If not found, create a new query
@@ -214,7 +215,7 @@ def get_sql_agent(
            - If example query found:
              * Use the query as a template
              * Replace parameters with actual values:
-               - :ticker -> stock symbol (e.g. 'MSFT')
+               - :ticker -> stock symbol (e.g. 'MSFT') find stock symbol if needed
                - :date -> date in YYYY-MM-DD format
                - :company_name -> company name
                - :year -> year number
@@ -228,12 +229,9 @@ def get_sql_agent(
            - Use run_sql_query to execute
            - Check returned results carefully:
              * Verify all fields are present
-             * Double check numbers and dates
              * Ensure data matches query parameters
            - If no data found:
              * First try to find nearest past date
-             * If still no data, try future dates
-             * Store both the price and nearest date
            - For plotting, query the data and use PlotTools to visualize
 
         6. FORMAT RESPONSE:

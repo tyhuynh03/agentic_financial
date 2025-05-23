@@ -274,43 +274,17 @@ ORDER BY "Date";
 -- Compare closing prices of two companies on a specific date
 -- </query description>
 -- <query>
-SELECT DISTINCT ON (a."Date")
-    a."Ticker" as ticker1,
-    b."Ticker" as ticker2,
-    a."Close" as price1,
-    b."Close" as price2,
-    CASE 
-        WHEN a."Close" > b."Close" THEN a."Ticker"
-        ELSE b."Ticker"
-    END as higher_ticker
-FROM prices a 
-JOIN prices b ON a."Date" = b."Date"
-WHERE a."Ticker" = :ticker1 
-AND b."Ticker" = :ticker2
-AND a."Date" = :date;
+SELECT 
+    "Ticker",
+    "Close",
+    "Date"
+FROM prices
+WHERE "Ticker" IN (:ticker1, :ticker2)
+  AND "Date" = :date;
+
 -- </query>
 
--- <query description>
--- Compare closing prices of two companies by name on a specific date
--- </query description>
--- <query>
-SELECT DISTINCT ON (p1."Date")
-    c1.name as company1,
-    c2.name as company2,
-    p1."Close" as price1,
-    p2."Close" as price2,
-    CASE 
-        WHEN p1."Close" > p2."Close" THEN c1.name
-        ELSE c2.name
-    END as higher_company
-FROM prices p1
-JOIN prices p2 ON p1."Date" = p2."Date"
-JOIN companies c1 ON p1."Ticker" = c1.symbol
-JOIN companies c2 ON p2."Ticker" = c2.symbol
-WHERE c1.name LIKE :company1
-AND c2.name LIKE :company2
-AND p1."Date" = :date;
--- </query>
+
 
 -- <query description>
 -- Find company with highest closing price on a specific date
