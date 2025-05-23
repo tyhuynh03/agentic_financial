@@ -55,6 +55,7 @@ def parse_plot_command(command: str) -> dict:
     
     # Xác định loại dữ liệu cho bar chart trung bình tháng
     data_type = None
+    rolling_window = None
     if "average monthly closing price" in command.lower():
         data_type = "monthly_avg_close"
     elif "market capitalization" in command.lower() and "p/e ratio" in command.lower():
@@ -67,6 +68,30 @@ def parse_plot_command(command: str) -> dict:
         data_type = "correlation_matrix"
     elif "daily trading volume" in command.lower():
         data_type = "daily_volume"
+    elif "rolling average" in command.lower() or "moving average" in command.lower():
+        data_type = "rolling_avg"
+        # Tìm số ngày cho rolling average
+        rolling_pattern = r'(\d+)-day'
+        rolling_match = re.search(rolling_pattern, command)
+        rolling_window = int(rolling_match.group(1)) if rolling_match else 30  # Mặc định là 30 ngày
+    elif "market capitalization" in command.lower() and "technology" in command.lower():
+        data_type = "sector_market_cap"
+        # Tìm sector
+        sector_pattern = r'in the (\w+) sector'
+        sector_match = re.search(sector_pattern, command.lower())
+        sector = sector_match.group(1).capitalize() if sector_match else "Technology"
+    elif "average daily volume" in command.lower() and "average closing price" in command.lower():
+        data_type = "volume_price_scatter"
+    elif "cumulative return" in command.lower():
+        data_type = "cumulative_return"
+    elif "high" in command.lower() and "low" in command.lower() and "range" in command.lower():
+        data_type = "high_low_range"
+    elif "daily returns" in command.lower():
+        data_type = "daily_returns_boxplot"
+    elif "dividends" in command.lower() and "per share" in command.lower():
+        data_type = "dividends_per_share"
+    elif ("market capitalization" in command.lower() and "proportion" in command.lower() and "sector" in command.lower()) or ("market capitalization" in command.lower() and "by sector" in command.lower() and ("pie" in command.lower() or "pie chart" in command.lower())):
+        data_type = "sector_market_cap_pie"
     
     # Tìm danh sách mã chứng khoán cho heatmap
     tickers = []
@@ -105,7 +130,8 @@ def parse_plot_command(command: str) -> dict:
                 "end_date": end_date,
                 "plot_type": plot_type,
                 "data_type": data_type,
-                "tickers": tickers
+                "tickers": tickers,
+                "rolling_window": rolling_window
             }
         except ValueError:
             pass
@@ -122,7 +148,8 @@ def parse_plot_command(command: str) -> dict:
             "date": date,
             "plot_type": plot_type,
             "data_type": data_type,
-            "tickers": tickers
+            "tickers": tickers,
+            "rolling_window": rolling_window
         }
         
     # Tìm khoảng thời gian
@@ -152,7 +179,8 @@ def parse_plot_command(command: str) -> dict:
                     "end_date": end_date,
                     "plot_type": plot_type,
                     "data_type": data_type,
-                    "tickers": tickers
+                    "tickers": tickers,
+                    "rolling_window": rolling_window
                 }
         
         # Nếu không tìm thấy ngày cụ thể, lấy ngày gần nhất có dữ liệu
@@ -173,7 +201,8 @@ def parse_plot_command(command: str) -> dict:
                     "date": date,
                     "plot_type": plot_type,
                     "data_type": data_type,
-                    "tickers": tickers
+                    "tickers": tickers,
+                    "rolling_window": rolling_window
                 }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -192,13 +221,194 @@ def parse_plot_command(command: str) -> dict:
         "end_date": end_date,
         "plot_type": plot_type,
         "data_type": data_type,
-        "tickers": tickers
+        "tickers": tickers,
+        "rolling_window": rolling_window
     }
 
 def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, date: str = None, 
-                  plot_type: str = None, data_type: str = None, tickers: list = None) -> pd.DataFrame:
+                  plot_type: str = None, data_type: str = None, tickers: list = None,
+                  rolling_window: int = None) -> pd.DataFrame:
     """Lấy dữ liệu chứng khoán từ database"""
     try:
+        # Nếu là bar chart dividends per share
+        if plot_type == "bar" and data_type == "dividends_per_share":
+            # Lấy dữ liệu cổ tức cho tất cả công ty trong DJIA
+            query = """
+                SELECT p."Ticker", 
+                       SUM(p."Dividends") as total_dividends,
+                       c.sector
+                FROM ai.prices p
+                JOIN ai.companies c ON p."Ticker" = c.symbol
+                WHERE p."Date" BETWEEN %s AND %s
+                GROUP BY p."Ticker", c.sector
+                ORDER BY total_dividends DESC
+            """
+            df = pd.read_sql(query, engine, params=(start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cổ tức trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            return df
+            
+        # Nếu là boxplot daily returns
+        if plot_type == "boxplot" and data_type == "daily_returns_boxplot":
+            query = """
+                SELECT "Date", "Close"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            # Tính daily returns
+            df['Daily_Return'] = df['Close'].pct_change() * 100  # Chuyển sang phần trăm
+            
+            # Thêm cột tháng để phân nhóm
+            df['Month'] = pd.to_datetime(df['Date']).dt.strftime('%B')
+            
+            return df
+            
+        # Nếu là histogram high-low range
+        if plot_type == "histogram" and data_type == "high_low_range":
+            query = """
+                SELECT "Date", "High", "Low"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            # Tính high-low range
+            df['High_Low_Range'] = df['High'] - df['Low']
+            
+            # Tính phần trăm range so với giá thấp nhất
+            df['Range_Percent'] = (df['High_Low_Range'] / df['Low']) * 100
+            
+            return df
+            
+        # Nếu là biểu đồ cumulative return
+        if plot_type == "time_series" and data_type == "cumulative_return":
+            query = """
+                SELECT "Date", "Close"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            # Tính daily returns
+            df['Daily_Return'] = df['Close'].pct_change()
+            
+            # Tính cumulative returns
+            df['Cumulative_Return'] = (1 + df['Daily_Return']).cumprod() - 1
+            
+            # Chuyển đổi sang phần trăm
+            df['Cumulative_Return'] = df['Cumulative_Return'] * 100
+            
+            return df
+            
+        # Nếu là scatter plot volume vs price
+        if plot_type == "scatter" and data_type == "volume_price_scatter":
+            # Lấy dữ liệu cho tất cả công ty trong DJIA
+            query = """
+                SELECT p."Ticker", 
+                       AVG(p."Volume") as avg_volume,
+                       AVG(p."Close") as avg_price,
+                       c.sector
+                FROM ai.prices p
+                JOIN ai.companies c ON p."Ticker" = c.symbol
+                WHERE p."Date" BETWEEN %s AND %s
+                GROUP BY p."Ticker", c.sector
+                ORDER BY avg_volume DESC
+            """
+            df = pd.read_sql(query, engine, params=(start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            return df
+            
+        # Nếu là histogram market cap theo sector
+        if plot_type == "histogram" and data_type == "sector_market_cap":
+            # Lấy ngày gần nhất có dữ liệu
+            query = """
+                SELECT "Date" 
+                FROM ai.prices 
+                ORDER BY "Date" DESC 
+                LIMIT 1
+            """
+            latest_date = pd.read_sql(query, engine)
+            if not latest_date.empty:
+                date = latest_date['Date'].iloc[0].strftime('%Y-%m-%d')
+            
+            # Lấy dữ liệu market cap cho các công ty trong sector
+            query = """
+                SELECT p."Ticker", p."Date", p."Close", p."Volume", c.sector
+                FROM ai.prices p
+                JOIN ai.companies c ON p."Ticker" = c.symbol
+                WHERE p."Date" = %s
+                AND c.sector = %s
+            """
+            df = pd.read_sql(query, engine, params=(date, "Technology"))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho sector Technology vào ngày {date}"
+                )
+            
+            # Tính market cap
+            df['Market_Cap'] = df['Volume'] * df['Close']  # Ước tính đơn giản
+            return df
+            
+        # Nếu là biểu đồ rolling average
+        if plot_type == "time_series" and data_type == "rolling_avg":
+            query = """
+                SELECT "Date", "Close"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            # Tính rolling average
+            df['Rolling_Avg'] = df['Close'].rolling(window=rolling_window).mean()
+            return df
+            
         # Nếu là bar chart trung bình giá đóng cửa theo tháng
         if plot_type == "bar" and data_type == "monthly_avg_close":
             query = """
@@ -380,6 +590,41 @@ def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, da
                         status_code=404,
                         detail="Không tìm thấy dữ liệu nào trong database"
                     )
+        # Pie chart market cap proportions by sector
+        elif plot_type == "pie" and data_type == "sector_market_cap_pie":
+            # Lấy ngày gần nhất có dữ liệu nếu ngày truyền vào không có
+            if date:
+                check_query = """
+                    SELECT "Date"
+                    FROM ai.prices
+                    WHERE "Date" <= %s
+                    ORDER BY "Date" DESC
+                    LIMIT 1
+                """
+                available_date = pd.read_sql(check_query, engine, params=(date,))
+                if not available_date.empty:
+                    date = available_date['Date'].iloc[0].strftime('%Y-%m-%d')
+            else:
+                # Nếu không truyền ngày, lấy ngày mới nhất
+                query = "SELECT MAX(\"Date\") as max_date FROM ai.prices"
+                date_df = pd.read_sql(query, engine)
+                date = date_df['max_date'].iloc[0].strftime('%Y-%m-%d')
+            # Lấy market cap từng công ty tại ngày đó
+            query = """
+                SELECT p."Ticker", c.sector, p."Close", p."Volume"
+                FROM ai.prices p
+                JOIN ai.companies c ON p."Ticker" = c.symbol
+                WHERE p."Date" = %s
+            """
+            df = pd.read_sql(query, engine, params=(date,))
+            if df.empty:
+                raise HTTPException(status_code=404, detail=f"Không tìm thấy dữ liệu market cap cho ngày {date}")
+            # Tính market cap từng công ty
+            df['Market_Cap'] = df['Close'] * df['Volume']
+            # Tổng market cap theo sector
+            sector_df = df.groupby('sector')['Market_Cap'].sum().reset_index()
+            sector_df['Date'] = date
+            return sector_df
         else:
             # Lấy dữ liệu cho một mã cụ thể
             query = """
@@ -402,14 +647,218 @@ def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, da
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 def create_plot(df: pd.DataFrame, ticker: str, start_date: str = None, end_date: str = None, 
-                plot_type: str = "time_series", data_type: str = None, tickers: list = None) -> str:
+                plot_type: str = "time_series", data_type: str = None, tickers: list = None,
+                rolling_window: int = None) -> str:
     """Tạo biểu đồ và trả về đường dẫn file"""
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No data found for {ticker}")
 
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    if plot_type == "heatmap" and data_type == "correlation_matrix":
+    if plot_type == "bar" and data_type == "dividends_per_share":
+        # Tạo màu sắc theo sector
+        sectors = df['sector'].unique()
+        colors = plt.cm.Set3(np.linspace(0, 1, len(sectors)))
+        sector_colors = dict(zip(sectors, colors))
+        
+        # Vẽ bar chart
+        bars = ax.bar(df['Ticker'], df['total_dividends'], 
+                     color=[sector_colors[sector] for sector in df['sector']],
+                     alpha=0.7)
+        
+        # Thêm giá trị trên mỗi cột
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'${height:.2f}',
+                   ha='center', va='bottom', fontsize=8)
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'Total Dividends per Share by DJIA Companies\n{start_date} to {end_date}')
+        ax.set_xlabel('Company')
+        ax.set_ylabel('Total Dividends per Share (USD)')
+        
+        # Xoay nhãn công ty
+        plt.xticks(rotation=45, ha='right')
+        
+        # Thêm lưới
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        
+        # Thêm chú thích cho các sector
+        from matplotlib.patches import Patch
+        legend_elements = [Patch(facecolor=sector_colors[sector], label=sector)
+                         for sector in sectors]
+        ax.legend(handles=legend_elements, title='Sectors',
+                 bbox_to_anchor=(1.05, 1), loc='upper left')
+        
+        # Thêm thống kê
+        mean_div = df['total_dividends'].mean()
+        median_div = df['total_dividends'].median()
+        max_div = df['total_dividends'].max()
+        
+        stats_text = f'Mean: ${mean_div:.2f}\nMedian: ${median_div:.2f}\nMax: ${max_div:.2f}'
+        ax.text(0.95, 0.95, stats_text,
+                transform=ax.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        plt.tight_layout()
+    elif plot_type == "boxplot" and data_type == "daily_returns_boxplot":
+        # Vẽ boxplot theo tháng
+        df.boxplot(column='Daily_Return', by='Month', ax=ax)
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'Distribution of Daily Returns for {ticker}\n{start_date} to {end_date}')
+        ax.set_xlabel('Month')
+        ax.set_ylabel('Daily Return (%)')
+        
+        # Xóa tiêu đề mặc định của boxplot
+        plt.suptitle('')
+        
+        # Thêm lưới
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        
+        # Thêm thống kê tổng quan
+        mean_return = df['Daily_Return'].mean()
+        median_return = df['Daily_Return'].median()
+        std_return = df['Daily_Return'].std()
+        
+        stats_text = f'Mean: {mean_return:.2f}%\nMedian: {median_return:.2f}%\nStd Dev: {std_return:.2f}%'
+        ax.text(0.95, 0.95, stats_text,
+                transform=ax.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        # Xoay nhãn tháng
+        plt.xticks(rotation=45)
+        
+        plt.tight_layout()
+    elif plot_type == "histogram" and data_type == "high_low_range":
+        # Vẽ histogram của high-low range
+        ax.hist(df['Range_Percent'], bins=30, color='purple', edgecolor='black', alpha=0.7)
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'Distribution of Daily High-Low Range for {ticker}\n{start_date} to {end_date}')
+        ax.set_xlabel('Daily Range (% of Low Price)')
+        ax.set_ylabel('Frequency')
+        
+        # Thêm lưới
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        
+        # Thêm thống kê
+        mean_range = df['Range_Percent'].mean()
+        median_range = df['Range_Percent'].median()
+        max_range = df['Range_Percent'].max()
+        
+        stats_text = f'Mean: {mean_range:.1f}%\nMedian: {median_range:.1f}%\nMax: {max_range:.1f}%'
+        ax.text(0.95, 0.95, stats_text,
+                transform=ax.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        plt.tight_layout()
+    elif plot_type == "time_series" and data_type == "cumulative_return":
+        # Vẽ biểu đồ cumulative return
+        ax.plot(df['Date'], df['Cumulative_Return'], color='green', linewidth=2)
+        
+        # Thêm đường zero
+        ax.axhline(y=0, color='black', linestyle='--', alpha=0.3)
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'{ticker} Cumulative Return\n{start_date} to {end_date}')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Cumulative Return (%)')
+        
+        # Thêm lưới
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Định dạng trục y để hiển thị phần trăm
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.1f}%'.format(y)))
+        
+        # Xoay nhãn ngày
+        plt.xticks(rotation=45)
+        
+        # Thêm giá trị cuối cùng
+        final_return = df['Cumulative_Return'].iloc[-1]
+        ax.annotate(f'Final Return: {final_return:.1f}%',
+                   xy=(df['Date'].iloc[-1], final_return),
+                   xytext=(10, 10),
+                   textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
+        
+        plt.tight_layout()
+    elif plot_type == "scatter" and data_type == "volume_price_scatter":
+        # Tạo scatter plot với màu sắc theo sector
+        sectors = df['sector'].unique()
+        colors = plt.cm.Set3(np.linspace(0, 1, len(sectors)))
+        sector_colors = dict(zip(sectors, colors))
+        
+        # Vẽ scatter plot cho từng sector
+        for sector in sectors:
+            sector_data = df[df['sector'] == sector]
+            ax.scatter(sector_data['avg_volume'], 
+                      sector_data['avg_price'],
+                      label=sector,
+                      color=sector_colors[sector],
+                      alpha=0.7,
+                      s=100)
+            
+            # Thêm nhãn cho các điểm
+            for _, row in sector_data.iterrows():
+                ax.annotate(row['Ticker'], 
+                          (row['avg_volume'], row['avg_price']),
+                          xytext=(5, 5),
+                          textcoords='offset points',
+                          fontsize=8)
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'Average Daily Volume vs Average Closing Price\n{start_date} to {end_date}')
+        ax.set_xlabel('Average Daily Volume')
+        ax.set_ylabel('Average Closing Price (USD)')
+        
+        # Thêm lưới
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Thêm chú thích
+        ax.legend(title='Sectors', bbox_to_anchor=(1.05, 1), loc='upper left')
+        
+        # Điều chỉnh layout để tránh cắt chú thích
+        plt.tight_layout()
+    elif plot_type == "histogram" and data_type == "sector_market_cap":
+        # Vẽ histogram market cap
+        ax.hist(df['Market_Cap'], bins=20, color='skyblue', edgecolor='black')
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'Distribution of Market Capitalizations in Technology Sector\n{df["Date"].iloc[0].strftime("%Y-%m-%d")}')
+        ax.set_xlabel('Market Capitalization (USD)')
+        ax.set_ylabel('Number of Companies')
+        
+        # Thêm lưới
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        
+        # Thêm chú thích về dữ liệu ước tính
+        plt.figtext(0.02, 0.02, 
+                   "Note: Market Cap is estimated from Volume * Close Price",
+                   fontsize=8, style='italic')
+        
+        plt.tight_layout()
+    elif plot_type == "time_series" and data_type == "rolling_avg":
+        # Vẽ biểu đồ giá đóng cửa và rolling average
+        ax.plot(df['Date'], df['Close'], label=f'{ticker} Closing Price', color='blue', alpha=0.7)
+        ax.plot(df['Date'], df['Rolling_Avg'], label=f'{rolling_window}-day Moving Average', 
+                color='red', linewidth=2)
+        
+        ax.set_title(f'{ticker} Stock Price and {rolling_window}-day Moving Average\n{start_date} to {end_date}')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price (USD)')
+        ax.grid(True)
+        ax.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+    elif plot_type == "heatmap" and data_type == "correlation_matrix":
         # Tính toán ma trận tương quan
         corr_matrix = df.corr()
         
@@ -546,6 +995,25 @@ def create_plot(df: pd.DataFrame, ticker: str, start_date: str = None, end_date:
         ax.set_xlabel('Month')
         ax.set_ylabel('Average Closing Price (USD)')
         plt.tight_layout()
+    elif plot_type == "pie" and data_type == "sector_market_cap_pie":
+        # Vẽ pie chart tỷ trọng vốn hóa theo sector
+        wedges, texts, autotexts = ax.pie(
+            df['Market_Cap'],
+            labels=df['sector'],
+            autopct='%1.1f%%',
+            textprops={'fontsize': 8},
+            colors=plt.cm.Pastel2(np.linspace(0, 1, len(df)))
+        )
+        ax.set_title(f'Market Capitalization Proportions by Sector\n{df["Date"].iloc[0]}')
+        # Thêm chú thích
+        plt.legend(
+            wedges,
+            [f'{sector}: ${cap/1e9:.1f}B' for sector, cap in zip(df['sector'], df['Market_Cap'])],
+            title="Sectors (Total Market Cap)",
+            loc="center left",
+            bbox_to_anchor=(1, 0, 0.5, 1)
+        )
+        plt.tight_layout()
     else:
         # Vẽ biểu đồ thời gian
         ax.plot(df['Date'], df['Close'], label=f'{ticker} Closing Price', color='blue')
@@ -604,7 +1072,8 @@ async def process_plot_command(request: PlotCommand):
             date=params.get("date"),
             plot_type=params["plot_type"],
             data_type=params.get("data_type"),
-            tickers=params.get("tickers")
+            tickers=params.get("tickers"),
+            rolling_window=params.get("rolling_window")
         )
         
         # Tạo biểu đồ
@@ -615,7 +1084,8 @@ async def process_plot_command(request: PlotCommand):
             end_date=params.get("end_date"),
             plot_type=params["plot_type"],
             data_type=params.get("data_type"),
-            tickers=params.get("tickers")
+            tickers=params.get("tickers"),
+            rolling_window=params.get("rolling_window")
         )
         
         # Trả về kết quả
