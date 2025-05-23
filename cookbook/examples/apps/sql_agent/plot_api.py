@@ -4,13 +4,14 @@ from pydantic import BaseModel
 import pandas as pd
 import matplotlib.pyplot as plt
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from pathlib import Path
 from typing import Optional
 import re
 import numpy as np
 from sqlalchemy import create_engine
+import seaborn as sns
 
 # Khởi tạo FastAPI app
 app = FastAPI()
@@ -47,16 +48,68 @@ def parse_plot_command(command: str) -> dict:
         plot_type = "bar"
     elif "pie" in command.lower() or "pie chart" in command.lower():
         plot_type = "pie"
-        
-    # Xác định loại dữ liệu cho scatter plot
+    elif "heatmap" in command.lower():
+        plot_type = "heatmap"
+    elif "volume" in command.lower() or "trading volume" in command.lower():
+        plot_type = "volume"
+    
+    # Xác định loại dữ liệu cho bar chart trung bình tháng
     data_type = None
-    if "market capitalization" in command.lower() and "p/e ratio" in command.lower():
+    if "average monthly closing price" in command.lower():
+        data_type = "monthly_avg_close"
+    elif "market capitalization" in command.lower() and "p/e ratio" in command.lower():
         data_type = "market_cap_pe"
     elif "market capitalization" in command.lower() and "top" in command.lower():
         data_type = "top_market_cap"
     elif "distribution" in command.lower() and "sector" in command.lower():
         data_type = "sector_distribution"
-        
+    elif "correlation" in command.lower() and "daily returns" in command.lower():
+        data_type = "correlation_matrix"
+    elif "daily trading volume" in command.lower():
+        data_type = "daily_volume"
+    
+    # Tìm danh sách mã chứng khoán cho heatmap
+    tickers = []
+    if plot_type == "heatmap":
+        # Tìm phần sau "for" trong câu lệnh
+        for_pattern = r'for\s+([A-Z]+(?:,\s*[A-Z]+)*)'
+        for_match = re.search(for_pattern, command)
+        if for_match:
+            tickers = [t.strip() for t in for_match.group(1).split(',')]
+            # Loại bỏ các từ khóa không phải mã chứng khoán
+            tickers = [t for t in tickers if t not in ['PLOT', 'HEATMAP', 'CORRELATION', 'MATRIX']]
+    
+    # Tìm tháng và năm
+    month_year_pattern = r'for\s+(\w+)\s+(\d{4})'
+    month_year_match = re.search(month_year_pattern, command)
+    if month_year_match:
+        month = month_year_match.group(1)
+        year = month_year_match.group(2)
+        try:
+            # Chuyển đổi tên tháng thành số
+            month_num = datetime.strptime(month, "%B").month
+            # Tạo ngày đầu và cuối tháng
+            start_date = f"{year}-{month_num:02d}-01"
+            # Tính ngày cuối tháng
+            if month_num == 12:
+                end_date = f"{year}-12-31"
+            else:
+                end_date = f"{year}-{month_num+1:02d}-01"
+                end_date = (datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            # Nếu không có mã cụ thể, mặc định là DJIA
+            ticker = ticker_match.group(1) if ticker_match else "DJIA"
+            return {
+                "ticker": ticker,
+                "start_date": start_date,
+                "end_date": end_date,
+                "plot_type": plot_type,
+                "data_type": data_type,
+                "tickers": tickers
+            }
+        except ValueError:
+            pass
+    
     # Tìm ngày
     date_pattern = r'as of (\w+ \d+,\s+\d{4})'
     date_match = re.search(date_pattern, command)
@@ -68,7 +121,8 @@ def parse_plot_command(command: str) -> dict:
             "ticker": ticker,
             "date": date,
             "plot_type": plot_type,
-            "data_type": data_type
+            "data_type": data_type,
+            "tickers": tickers
         }
         
     # Tìm khoảng thời gian
@@ -97,7 +151,8 @@ def parse_plot_command(command: str) -> dict:
                     "start_date": start_date,
                     "end_date": end_date,
                     "plot_type": plot_type,
-                    "data_type": data_type
+                    "data_type": data_type,
+                    "tickers": tickers
                 }
         
         # Nếu không tìm thấy ngày cụ thể, lấy ngày gần nhất có dữ liệu
@@ -117,7 +172,8 @@ def parse_plot_command(command: str) -> dict:
                     "ticker": ticker,
                     "date": date,
                     "plot_type": plot_type,
-                    "data_type": data_type
+                    "data_type": data_type,
+                    "tickers": tickers
                 }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -135,14 +191,105 @@ def parse_plot_command(command: str) -> dict:
         "start_date": start_date,
         "end_date": end_date,
         "plot_type": plot_type,
-        "data_type": data_type
+        "data_type": data_type,
+        "tickers": tickers
     }
 
-def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, date: str = None, plot_type: str = None, data_type: str = None) -> pd.DataFrame:
+def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, date: str = None, 
+                  plot_type: str = None, data_type: str = None, tickers: list = None) -> pd.DataFrame:
     """Lấy dữ liệu chứng khoán từ database"""
     try:
+        # Nếu là bar chart trung bình giá đóng cửa theo tháng
+        if plot_type == "bar" and data_type == "monthly_avg_close":
+            query = """
+                SELECT "Date", "Close"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu giá đóng cửa cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            df['Month'] = pd.to_datetime(df['Date']).dt.strftime('%b')
+            monthly_avg = df.groupby('Month')['Close'].mean().reindex([
+                'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'])
+            return monthly_avg.reset_index(name='AvgClose')
+        
+        # Nếu là biểu đồ khối lượng giao dịch
+        if plot_type == "volume" and data_type == "daily_volume":
+            query = """
+                SELECT "Date", "Volume"
+                FROM ai.prices
+                WHERE "Ticker" = %s
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date"
+            """
+            df = pd.read_sql(query, engine, params=(ticker, start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu khối lượng giao dịch cho {ticker} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            return df
+            
+        # Nếu là biểu đồ heatmap
+        if plot_type == "heatmap" and data_type == "correlation_matrix" and tickers:
+            # Kiểm tra xem có dữ liệu cho các mã được chỉ định không
+            check_query = """
+                SELECT DISTINCT "Ticker"
+                FROM ai.prices
+                WHERE "Ticker" = ANY(%s)
+                AND "Date" BETWEEN %s AND %s
+            """
+            available_tickers = pd.read_sql(check_query, engine, params=(tickers, start_date, end_date))
+            
+            if available_tickers.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu cho các mã: {', '.join(tickers)} trong khoảng thời gian từ {start_date} đến {end_date}"
+                )
+            
+            # Lấy dữ liệu cho các mã có sẵn
+            query = """
+                SELECT "Ticker", "Date", "Close"
+                FROM ai.prices
+                WHERE "Ticker" = ANY(%s)
+                AND "Date" BETWEEN %s AND %s
+                ORDER BY "Date", "Ticker"
+            """
+            df = pd.read_sql(query, engine, params=(available_tickers['Ticker'].tolist(), start_date, end_date))
+            
+            if df.empty:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Không tìm thấy dữ liệu giá cho các mã: {', '.join(tickers)}"
+                )
+            
+            # Tính toán daily returns
+            df = df.pivot(index='Date', columns='Ticker', values='Close')
+            # Tính daily returns và điền giá trị 0 cho ngày đầu tiên
+            returns = df.pct_change() * 100
+            returns = returns.fillna(0)  # Điền 0 cho ngày đầu tiên
+            
+            # Kiểm tra xem có đủ dữ liệu không
+            if returns.isnull().sum().sum() > 0:
+                missing_data = returns.isnull().sum()
+                missing_tickers = missing_data[missing_data > 0].index.tolist()
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Thiếu dữ liệu daily returns cho các mã: {', '.join(missing_tickers)}"
+                )
+            
+            return returns
+            
         # Nếu là biểu đồ top market cap hoặc scatter plot
-        if plot_type in ["bar", "scatter"] and data_type in ["top_market_cap", "market_cap_pe"]:
+        elif plot_type in ["bar", "scatter"] and data_type in ["top_market_cap", "market_cap_pe"]:
             # Kiểm tra và lấy ngày gần nhất có dữ liệu
             if date:
                 check_query = """
@@ -255,14 +402,32 @@ def get_stock_data(ticker: str, start_date: str = None, end_date: str = None, da
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 def create_plot(df: pd.DataFrame, ticker: str, start_date: str = None, end_date: str = None, 
-                plot_type: str = "time_series", data_type: str = None) -> str:
+                plot_type: str = "time_series", data_type: str = None, tickers: list = None) -> str:
     """Tạo biểu đồ và trả về đường dẫn file"""
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No data found for {ticker}")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
     
-    if plot_type == "pie" and data_type == "sector_distribution":
+    if plot_type == "heatmap" and data_type == "correlation_matrix":
+        # Tính toán ma trận tương quan
+        corr_matrix = df.corr()
+        
+        # Vẽ heatmap
+        sns.heatmap(corr_matrix, 
+                   annot=True,  # Hiển thị giá trị
+                   cmap='coolwarm',  # Màu sắc
+                   center=0,  # Giá trị trung tâm
+                   fmt='.2f',  # Định dạng số
+                   square=True,  # Hình vuông
+                   ax=ax)
+        
+        # Thêm tiêu đề
+        ax.set_title(f'Correlation Matrix of Daily Returns\n{start_date} to {end_date}')
+        
+        # Điều chỉnh layout
+        plt.tight_layout()
+    elif plot_type == "pie" and data_type == "sector_distribution":
         # Tính toán số lượng công ty theo ngành
         sector_counts = df['sector'].value_counts()
         
@@ -352,6 +517,35 @@ def create_plot(df: pd.DataFrame, ticker: str, start_date: str = None, end_date:
         ax.set_ylabel('Price (USD)')
         plt.suptitle('')  # Xóa tiêu đề mặc định của boxplot
         ax.grid(True)
+    elif plot_type == "volume" and data_type == "daily_volume":
+        # Vẽ line chart cho khối lượng giao dịch
+        ax.plot(df['Date'], df['Volume'], marker='o', linestyle='-', color='tab:blue')
+        
+        # Thêm tiêu đề và nhãn
+        ax.set_title(f'{ticker} Trading Volume (Mar 2025)')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Volume')
+        
+        # Xoay nhãn ngày để dễ đọc
+        plt.xticks(rotation=45, ha='right')
+        
+        # Thêm lưới
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        
+        # Điều chỉnh layout
+        plt.tight_layout()
+    elif plot_type == "bar" and data_type == "monthly_avg_close":
+        # Vẽ bar chart trung bình giá đóng cửa theo tháng
+        bars = ax.bar(df['Month'], df['AvgClose'], color='orange', alpha=0.8)
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{height:.2f}',
+                   ha='center', va='bottom', fontsize=9)
+        ax.set_title(f'{ticker} Average Monthly Closing Price in 2024')
+        ax.set_xlabel('Month')
+        ax.set_ylabel('Average Closing Price (USD)')
+        plt.tight_layout()
     else:
         # Vẽ biểu đồ thời gian
         ax.plot(df['Date'], df['Close'], label=f'{ticker} Closing Price', color='blue')
@@ -409,7 +603,8 @@ async def process_plot_command(request: PlotCommand):
             end_date=params.get("end_date"),
             date=params.get("date"),
             plot_type=params["plot_type"],
-            data_type=params.get("data_type")
+            data_type=params.get("data_type"),
+            tickers=params.get("tickers")
         )
         
         # Tạo biểu đồ
@@ -419,7 +614,8 @@ async def process_plot_command(request: PlotCommand):
             start_date=params.get("start_date"),
             end_date=params.get("end_date"),
             plot_type=params["plot_type"],
-            data_type=params.get("data_type")
+            data_type=params.get("data_type"),
+            tickers=params.get("tickers")
         )
         
         # Trả về kết quả
